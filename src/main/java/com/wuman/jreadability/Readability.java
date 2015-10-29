@@ -16,6 +16,7 @@ public class Readability {
 
     private static final String CONTENT_SCORE = "readabilityContentScore";
 
+    // A HTML Document
     private final Document mDocument;
     private String mBodyCache;
 
@@ -51,22 +52,28 @@ public class Readability {
      * 
      * Workflow: 
      * 1. Prep the document by removing script tags, css, etc. 
+     * (通过移除script tags, css等准备document)
      * 2. Build readability's DOM tree. 
+     * （构建readability树）
      * 3. Grab the article content from the current dom tree. 
+     * （从dom树中抓取文章内容）
      * 4. Replace the current DOM tree with the new one. 
+     * （替换用新的DOM树代替旧的）
      * 5. Read peacefully.
      * 
      * @param preserveUnlikelyCandidates
      */
     // @formatter:on
     private void init(boolean preserveUnlikelyCandidates) {
-        if (mDocument.body() != null && mBodyCache == null) {
-            mBodyCache = mDocument.body().html();
+    	Element body = mDocument.body();
+        if (body != null && mBodyCache == null) {
+            mBodyCache = body.html();
         }
 
         prepDocument();
 
         /* Build readability's DOM tree */
+        // 创建readability的DOM树
         Element overlay = mDocument.createElement("div");
         Element innerDiv = mDocument.createElement("div");
         Element articleTitle = getArticleTitle();
@@ -128,7 +135,8 @@ public class Readability {
     /**
      * Get the article title as an H1. Currently just uses document.title, we
      * might want to be smarter in the future.
-     * 
+     * （获得文章的标题作为H1元素。现在只是使用document.title，将来也许会使用更好的
+     * 方式）
      * @return
      */
     protected Element getArticleTitle() {
@@ -140,32 +148,40 @@ public class Readability {
     /**
      * Prepare the HTML document for readability to scrape it. This includes
      * things like stripping javascript, CSS, and handling terrible markup.
+     * (为readability准备HTML document。包括去掉javascript, CSS和处理糟糕的标记)
      */
     protected void prepDocument() {
         /**
          * In some cases a body element can't be found (if the HTML is totally
          * hosed for example) so we create a new body node and append it to the
          * document.
+         * （在某些情况下，body元素不能被找到，因此我们创建一个新的body节点，并把这个节点
+         * 附到document上）
          */
         if (mDocument.body() == null) {
             mDocument.appendElement("body");
         }
 
         /* Remove all scripts */
+        // 移除所有脚本
         Elements elementsToRemove = mDocument.getElementsByTag("script");
         for (Element script : elementsToRemove) {
+        	// Remove (delete) this node from the DOM tree. If this node has children, they are also removed.
             script.remove();
         }
 
         /* Remove all stylesheets */
+        // 移除所有样式表
         elementsToRemove = getElementsByTag(mDocument.head(), "link");
         for (Element styleSheet : elementsToRemove) {
+        	// <link type="text/css" rel="stylesheet" href="/bundles/blog-common.css?v=TdLMZRHMQfitXmNZ7SFinI4hbzrT2-_1PvIqhhWnsbI1" />
             if ("stylesheet".equalsIgnoreCase(styleSheet.attr("rel"))) {
                 styleSheet.remove();
             }
         }
 
         /* Remove all style tags in head */
+        // 移除所有样式标签
         elementsToRemove = mDocument.getElementsByTag("style");
         for (Element styleTag : elementsToRemove) {
             styleTag.remove();
@@ -278,9 +294,10 @@ public class Readability {
 
     /**
      * Using a variety of metrics (content score, classname, element types),
-     * find the content that ismost likely to be the stuff a user wants to read.
+     * find the content that is most likely to be the stuff a user wants to read.
      * Then return it wrapped up in a div.
-     * 
+     * （用不同的测量标准（内容分数，类名，元素类型）来寻找用户最想读的内容。然后包装
+     * 在一个div中返回）
      * @param preserveUnlikelyCandidates
      * @return
      */
@@ -290,7 +307,8 @@ public class Readability {
          * the class name "comment", etc), and turn divs into P tags where they
          * have been used inappropriately (as in, where they contain no other
          * block level elements.)
-         * 
+         * （首先，节点准备。废弃一些节点（例如 类名为“comment”等），把使用不当的div标签
+         * 换成P标签（比如，它们没有包含其它块级元素））
          * Note: Assignment from index for performance. See
          * http://www.peachpit.com/articles/article.aspx?p=31567&seqNum=5 TODO:
          * Shouldn't this be a reverse traversal?
