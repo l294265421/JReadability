@@ -20,22 +20,48 @@ public class Readability {
     private final Document mDocument;
     private String mBodyCache;
 
+    /**
+     * 
+     * @param html 待解析的HTML
+     */
     public Readability(String html) {
         super();
         mDocument = Jsoup.parse(html);
     }
 
+    /**
+     * 
+     * @param html 待解析的HTML
+     * @param baseUri The URL where the HTML was retrieved from. 
+     * Used to resolve relative URLs to absolute URLs, that occur 
+     * before the HTML declares a <base href> tag.
+     */
     public Readability(String html, String baseUri) {
         super();
         mDocument = Jsoup.parse(html, baseUri);
     }
 
+    /**
+     * 
+     * @param in file to load HTML from
+     * @param charsetName 待解析的HTML
+     * @param baseUri The URL where the HTML was retrieved from. 
+     * Used to resolve relative URLs to absolute URLs, that occur 
+     * before the HTML declares a <base href> tag.
+     * @throws IOException
+     */
     public Readability(File in, String charsetName, String baseUri)
             throws IOException {
         super();
         mDocument = Jsoup.parse(in, charsetName, baseUri);
     }
 
+    /**
+     * 
+     * @param url URL to fetch (with a GET). The protocol must be http or https.
+     * @param timeoutMillis Connection and read timeout, in milliseconds. If exceeded, IOException is thrown.
+     * @throws IOException
+     */
     public Readability(URL url, int timeoutMillis) throws IOException {
         super();
         mDocument = Jsoup.parse(url, timeoutMillis);
@@ -67,6 +93,7 @@ public class Readability {
     private void init(boolean preserveUnlikelyCandidates) {
     	Element body = mDocument.body();
         if (body != null && mBodyCache == null) {
+        	// mBodyCache保存这body里面的内容
             mBodyCache = body.html();
         }
 
@@ -76,7 +103,9 @@ public class Readability {
         // 创建readability的DOM树
         Element overlay = mDocument.createElement("div");
         Element innerDiv = mDocument.createElement("div");
+        // 获取标题
         Element articleTitle = getArticleTitle();
+        // 获取正文
         Element articleContent = grabArticle(preserveUnlikelyCandidates);
 
         /**
@@ -193,9 +222,10 @@ public class Readability {
         }
 
         /* Turn all double br's into p's */
+        // 把所有double br变为p
         /*
          * TODO: this is pretty costly as far as processing goes. Maybe optimize
-         * later.
+         * later.（这是十分耗时的。也许之后会进行优化）
          */
         mDocument.body().html(
                 mDocument.body().html()
@@ -206,7 +236,7 @@ public class Readability {
     /**
      * Prepare the article node for display. Clean out any inline styles,
      * iframes, forms, strip extraneous &lt;p&gt; tags, etc.
-     * 
+     * (准备文本节点，用于显示。清除所有内部的样式，iframes, forms,和外部的&lt;p&gt;标签等)
      * @param articleContent
      */
     private void prepArticle(Element articleContent) {
@@ -262,10 +292,17 @@ public class Readability {
     /**
      * Initialize a node with the readability object. Also checks the
      * className/id for special names to add to its score.
-     * 
+     * （用一个readability对象初始化一个节点。同时也检查类名/id，对特定的名字，
+     * 给节点增加相应的分数）
      * @param node
      */
     private static void initializeNode(Element node) {
+    	/**
+    	 * Set an attribute value on this element. 
+    	 * If this element already has an attribute 
+    	 * with the key, its value is updated; otherwise, 
+    	 * a new attribute is added.
+    	 */
         node.attr(CONTENT_SCORE, Integer.toString(0));
 
         String tagName = node.tagName();
@@ -303,7 +340,7 @@ public class Readability {
      * Then return it wrapped up in a div.
      * （用不同的测量标准（内容分数，类名，元素类型）来寻找用户最想读的内容。然后包装
      * 在一个div中返回）
-     * @param preserveUnlikelyCandidates
+     * @param preserveUnlikelyCandidates 是否保存看上去不像候选节点的元素
      * @return
      */
     protected Element grabArticle(boolean preserveUnlikelyCandidates) {
@@ -320,6 +357,7 @@ public class Readability {
          **/
         for (Element node : mDocument.getAllElements()) {
             /* Remove unlikely candidates */
+        	// 移除看上去不像候选节点的元素
             if (!preserveUnlikelyCandidates) {
                 String unlikelyMatchString = node.className() + node.id();
                 Matcher unlikelyCandidatesMatcher = Patterns.get(
@@ -340,6 +378,7 @@ public class Readability {
             /*
              * Turn all divs that don't have children block level elements into
              * p's
+             * （把所有不包含块级孩子节点的div变为p）
              */
             if ("div".equalsIgnoreCase(node.tagName())) {
                 Matcher matcher = Patterns
@@ -348,6 +387,7 @@ public class Readability {
                 if (!matcher.find()) {
                     dbg("Alternating div to p: " + node);
                     try {
+                    	// <div id="blog-news"></div> 变为 <div id="blog-news"></div>
                         node.tagName("p");
                     } catch (Exception e) {
                         dbg("Could not alter div to p, probably an IE restriction, reverting back to div.",
@@ -391,6 +431,7 @@ public class Readability {
             }
 
             /* Initialize readability data for the grandparent. */
+            // 给祖父节点初始化readability数据
             if (!grandParentNode.hasAttr("readabilityContentScore")) {
                 initializeNode(grandParentNode);
                 candidates.add(grandParentNode);
@@ -425,6 +466,7 @@ public class Readability {
          * （在我们计算了分数之后，就可以遍历我们找到的所有可能的候选节点，找到得分最高的
          * 那一个）
          */
+        // 分数最高的元素
         Element topCandidate = null;
         for (Element candidate : candidates) {
             /**
@@ -470,10 +512,12 @@ public class Readability {
          */
         Element articleContent = mDocument.createElement("div");
         articleContent.attr("id", "readability-content");
+        // 设置一个分数门槛，看哪一些兄弟也是正文
         int siblingScoreThreshold = Math.max(10,
                 (int) (getContentScore(topCandidate) * 0.2f));
         Elements siblingNodes = topCandidate.parent().children();
         for (Element siblingNode : siblingNodes) {
+        	// 是否被添加到articleContent节点中
             boolean append = false;
 
             dbg("Looking at sibling node: (" + siblingNode.className() + ":"
@@ -488,6 +532,7 @@ public class Readability {
                 append = true;
             }
 
+            // 什么样的p节点才能是正文
             if ("p".equalsIgnoreCase(siblingNode.tagName())) {
                 float linkDensity = getLinkDensity(siblingNode);
                 String nodeContent = getInnerText(siblingNode, true);
@@ -526,7 +571,7 @@ public class Readability {
     /**
      * Get the inner text of a node - cross browser compatibly. This also strips
      * out any excess whitespace to be found.
-     * 
+     * （获得一个节点内部的文本。并且根据参数，判断是否移除额外的空白）
      * @param e
      * @param normalizeSpaces
      * @return
@@ -587,7 +632,7 @@ public class Readability {
      * Get the density of links as a percentage of the content. This is the
      * amount of text that is inside a link divided by the total text in the
      * node.
-     * 
+     * （获得链接密度=链接中的文本数量处理整个节点的文本数量）
      * @param e
      * @return
      */
@@ -604,7 +649,8 @@ public class Readability {
     /**
      * Get an elements class/id weight. Uses regular expressions to tell if this
      * element looks good or bad.
-     * 
+     * （获得一个元素 类／id的权重。使用正则表达式来检查这个元素看起来
+     * 是好的还是坏的）
      * @param e
      * @return
      */
@@ -646,7 +692,7 @@ public class Readability {
 
     /**
      * Remove extraneous break tags from a node.
-     * 
+     * （移除节点中所有的break标签）
      * @param e
      */
     private static void killBreaks(Element e) {
@@ -796,6 +842,7 @@ public class Readability {
         private static Pattern sNegativeRe;
         private static Pattern sDivToPElementsRe;
         private static Pattern sVideoRe;
+        // (?i)正则表达式的匹配模式：即不区分大小写
         private static final String REGEX_REPLACE_BRS = "(?i)(<br[^>]*>[ \n\r\t]*){2,}";
         private static final String REGEX_REPLACE_FONTS = "(?i)<(\\/?)font[^>]*>";
         /* Java has String.trim() */
@@ -867,7 +914,7 @@ public class Readability {
 
     /**
      * Reads the content score.
-     * 
+     * （读取一个节点的内容分）
      * @param node
      * @return
      */
@@ -882,7 +929,7 @@ public class Readability {
     /**
      * Increase or decrease the content score for an Element by an
      * increment/decrement.
-     * 
+     * (增加或减少一个元素的内容分)
      * @param node
      * @param increment
      * @return
@@ -896,7 +943,7 @@ public class Readability {
 
     /**
      * Scales the content score for an Element with a factor of scale.
-     * 
+     * （用一个伸缩因子伸缩内容分数）
      * @param node
      * @param scale
      * @return
@@ -912,7 +959,7 @@ public class Readability {
      * Jsoup's Element.getElementsByTag(Element e) includes e itself, which is
      * different from W3C standards. This utility function is exclusive of the
      * Element e.
-     * 
+     * （获得元素e下所有标签为tag的节点（不包括e节点））
      * @param e
      * @param tag
      * @return
