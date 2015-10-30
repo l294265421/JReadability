@@ -85,6 +85,9 @@ public class Readability {
          * out the actual content so we couldn't parse it. So re-run init while
          * preserving unlikely candidates to have a better shot at getting our
          * content out properly.
+         * （如果我们在第一次运行时尝试去去除看上去不太可能是候选节点的节点，而且我们最终没有
+         * 得到内容，这也许意味着我们移除了实际的内容，因此我们不能解析它。因此，再次运行，这次
+         * 我们保留那些看上去不太可能是候选节点的节点来再次尝试获得我们想要的内容）
          */
         if (isEmpty(getInnerText(articleContent, false))) {
             if (!preserveUnlikelyCandidates) {
@@ -98,11 +101,13 @@ public class Readability {
         }
 
         /* Glue the structure of our document together. */
+        // 把我们的文档结构粘在一起
         innerDiv.appendChild(articleTitle);
         innerDiv.appendChild(articleContent);
         overlay.appendChild(innerDiv);
 
         /* Clear the old HTML, insert the new content. */
+        // 清除老的HTML,插入新的内容
         mDocument.body().html("");
         mDocument.body().prependChild(overlay);
     }
@@ -355,9 +360,11 @@ public class Readability {
         /**
          * Loop through all paragraphs, and assign a score to them based on how
          * content-y they look. Then add their score to their parent node.
+         * (遍历所有段落，基于内容给它们打分。然后把它们的分数加到它们的父节点上)
          * 
          * A score is determined by things like number of commas, class names,
          * etc. Maybe eventually link density.
+         * （分数有逗号，类名，链接密度等因素决定。）
          **/
         Elements allParagraphs = mDocument.getElementsByTag("p");
         ArrayList<Element> candidates = new ArrayList<Element>();
@@ -370,12 +377,14 @@ public class Readability {
             /*
              * If this paragraph is less than 25 characters, don't even count
              * it.
+             * （如果段落内的文本少于25个字符，就不考虑它）
              */
             if (innerText.length() < 25) {
                 continue;
             }
 
             /* Initialize readability data for the parent. */
+            // 给父节点初始化readability数据
             if (!parentNode.hasAttr("readabilityContentScore")) {
                 initializeNode(parentNode);
                 candidates.add(parentNode);
@@ -390,18 +399,22 @@ public class Readability {
             int contentScore = 0;
 
             /* Add a point for the paragraph itself as a base. */
+            // 这个段落因为本身而获得一分
             contentScore++;
 
             /* Add points for any commas within this paragraph */
+            // 段落内有多少逗号，该节点就加多少分
             contentScore += innerText.split(",").length;
 
             /*
              * For every 100 characters in this paragraph, add another point. Up
              * to 3 points.
+             * （段落中每一百个字符给该节点增加1分，最多增加3分）
              */
             contentScore += Math.min(Math.floor(innerText.length() / 100), 3);
 
             /* Add the score to the parent. The grandparent gets half. */
+            // 把分数加给该节点的父节点，祖父节点获得一半
             incrementContentScore(parentNode, contentScore);
             incrementContentScore(grandParentNode, contentScore / 2);
         }
@@ -409,6 +422,8 @@ public class Readability {
         /**
          * After we've calculated scores, loop through all of the possible
          * candidate nodes we found and find the one with the highest score.
+         * （在我们计算了分数之后，就可以遍历我们找到的所有可能的候选节点，找到得分最高的
+         * 那一个）
          */
         Element topCandidate = null;
         for (Element candidate : candidates) {
@@ -416,6 +431,8 @@ public class Readability {
              * Scale the final candidates score based on link density. Good
              * content should have a relatively small link density (5% or less)
              * and be mostly unaffected by this operation.
+             * （基于链接密度增加候选节点分数。好的节点应该拥有相对小的链接密度（5%或者更少）
+             * 而且大部分不会被这个操作影响）
              */
             scaleContentScore(candidate, 1 - getLinkDensity(candidate));
 
@@ -432,6 +449,8 @@ public class Readability {
          * If we still have no top candidate, just use the body as a last
          * resort. We also have to copy the body node so it is something we can
          * modify.
+         * （如果我们还没有一个顶级候选元素，我们可以使用body。我们也必须复制body节点，
+         * 因此我们可以修改它。）
          */
         if (topCandidate == null
                 || "body".equalsIgnoreCase(topCandidate.tagName())) {
@@ -446,6 +465,8 @@ public class Readability {
          * Now that we have the top candidate, look through its siblings for
          * content that might also be related. Things like preambles, content
          * split by ads that we removed, etc.
+         * （既然我们已经有了顶级候选元素，我们就遍历它的所有兄弟节点的内容，这些内容
+         * 可能也是相关的。像前言这样的东西，内容被广告分开了，我们已经把它删除了）
          */
         Element articleContent = mDocument.createElement("div");
         articleContent.attr("id", "readability-content");
@@ -495,6 +516,7 @@ public class Readability {
         /**
          * So we have all of the content that we need. Now we clean it up for
          * presentation.
+         * （因此我们拥有我们需要的所有内容了。现在我们来清洗它，为了很好的呈现）
          */
         prepArticle(articleContent);
 
