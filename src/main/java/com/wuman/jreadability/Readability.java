@@ -980,4 +980,20 @@ public class Readability {
         return s == null || s.length() == 0;
     }
 
+	public String getmBodyCache() {
+		return mBodyCache;
+	}
+
+	public void setmBodyCache(String mBodyCache) {
+		this.mBodyCache = mBodyCache;
+	}
+
+	public Document getmDocument() {
+		return mDocument;
+	}
+
+	public static String getContentScore() {
+		return CONTENT_SCORE;
+	}
+
 }
