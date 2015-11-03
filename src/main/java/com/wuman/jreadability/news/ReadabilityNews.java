@@ -117,7 +117,7 @@ public class ReadabilityNews {
 		String newsTitle = removeTextNodeInBodyForeTitle(articleTitle.text());
 		Element newsTitleElement = createElement("h1", newsTitle);
 
-		// 备份mDocument;这一步能否省去，需要进一步学习之后才能确定
+		// 备份mDocument
 		Document mDocumentBackup = mDocument.clone();
 
 		// 获取正文
@@ -127,11 +127,19 @@ public class ReadabilityNews {
 		String firstTextNode = getFirstTextNodeFromContent(articleContent);
 
 		// 获取新闻时间
-		String publishTime = getNewsPublishTime(newsTitle, firstTextNode, mDocumentBackup);
+		String publishTime = getNewsPublishTime(newsTitle, firstTextNode,
+				mDocumentBackup);
+		if (publishTime != null &&publishTime.length() == 0) {
+			publishTime = null;
+		}
 
 		// 获取新闻来源
-		String source = getNewsSource1(newsTitle, firstTextNode, mDocumentBackup);
-		
+		String source = getNewsSource1(newsTitle, firstTextNode,
+				mDocumentBackup);
+		if (source != null && source.length() == 0) {
+			source = null;
+		}
+
 		// 创建节点保存新闻发表时间和来源
 		Element publishTimeSource = null;
 		if (publishTime != null && source == null) {
@@ -166,11 +174,11 @@ public class ReadabilityNews {
 		/* Glue the structure of our document together. */
 		// 把我们的文档结构粘在一起
 		innerDiv.appendChild(newsTitleElement);
-		
+
 		if (publishTimeSource != null) {
 			innerDiv.appendChild(publishTimeSource);
 		}
-		
+
 		innerDiv.appendChild(articleContent);
 		overlay.appendChild(innerDiv);
 
@@ -218,9 +226,10 @@ public class ReadabilityNews {
 		articleTitle.html(htmlTitle);
 		return articleTitle;
 	}
-	
+
 	/**
 	 * 创建一个节点，并赋值给该节点一个文本节点
+	 * 
 	 * @param tagName
 	 * @param text
 	 * @return
@@ -234,22 +243,34 @@ public class ReadabilityNews {
 	/**
 	 * 删除body节点中，在新闻标题之前的所有文本节点
 	 * 
-	 * @param title
-	 *            网页title，新闻标题包含其中
+	 * @param title 网页title，新闻标题包含其中
 	 * @return 返回新闻标题
 	 */
 	public String removeTextNodeInBodyForeTitle(String title) {
 		String newsTitle = "";
 		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument.body());
+
 		for (TextNode textNode : textNodeList) {
 			String text = textNode.text().trim();
 			int len = text.length();
 			if (len != 0) {
-				// 这个地方还需要改进，得到text可能也只是新闻标题的一部分
-				if (title.startsWith(text)) {
+				System.out.println(textNode.text().trim());
+			}
+		}
+
+		for (TextNode textNode : textNodeList) {
+			String text = textNode.text().trim();
+			int len = text.length();
+			if (len != 0) {
+				// 这个地方还需要改进，得到text可能也只是新闻标题的一部分；
+				// 第二个条件用于解决html文档不标准的问题，比如不能取出body节点
+				if (title.startsWith(text)
+						&& (text.length() < title.length() 
+						&& text.length() >= title.length() / 2)) {
 					newsTitle = text;
+					break;
 				} else {
-					// textNode.remove();
+					 textNode.remove();
 				}
 			}
 		}
@@ -258,13 +279,18 @@ public class ReadabilityNews {
 
 	/**
 	 * 在一系列文本节点范围内寻找发表时间
-	 * @param start 起点文本
-	 * @param end 终点文本
-	 * @param element 包好起点文本、终点文本的节点树
+	 * 
+	 * @param start
+	 *            起点文本
+	 * @param end
+	 *            终点文本
+	 * @param element
+	 *            包好起点文本、终点文本的节点树
 	 * @return 新闻发表时间；如果没找到就返回null
 	 */
-	public String getNewsPublishTime(String start, String end, Element element) {
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument.body());
+	public String getNewsPublishTime(String start, String end, Document element) {
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(element.body());
+
 		String publishTime = null;
 
 		boolean isStart = false; // 起点判断
@@ -294,16 +320,29 @@ public class ReadabilityNews {
 
 		return publishTime;
 	}
-	
+
 	/**
 	 * 在一系列文本节点范围内寻找新闻来源
-	 * @param start 起点文本
-	 * @param end 终点文本
-	 * @param element 包好起点文本、终点文本的节点树
+	 * 
+	 * @param start
+	 *            起点文本
+	 * @param end
+	 *            终点文本
+	 * @param element
+	 *            包好起点文本、终点文本的节点树
 	 * @return 新闻来源；如果没找到就返回null
 	 */
-	public String getNewsSource1(String start, String end, Element element) {
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument.body());
+	public String getNewsSource1(String start, String end, Document element) {
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(element.body());
+
+		for (TextNode textNode : textNodeList) {
+			String text = textNode.text().trim();
+			int len = text.length();
+			if (len != 0) {
+				System.out.println(textNode.text().trim());
+			}
+		}
+
 		String source = null;
 
 		boolean isStart = false; // 起点判断
@@ -323,19 +362,22 @@ public class ReadabilityNews {
 				if (!isFindSource) {
 					if (text.startsWith("来源")) {
 						isFindSource = true;
+					} else {
+						continue;
 					}
-					
+
 					// 说明 得到的形式是类似这样的 来源：具体来源
-					if (len > 2) {
+					if (len > 5) {
 						source = text.substring(3).trim();
 						break;
 					} else {
 						continue;
 					}
-					
+
 				}
 				// 找到了来源于二字，但是还没找到具体来源于
 				source = text;
+				break;
 			}
 		}
 
@@ -724,7 +766,7 @@ public class ReadabilityNews {
 	}
 
 	/**
-	 * 从新闻正文中获得第一个文本节点
+	 * 从新闻正文中获得第一个文本长度大于3的节点
 	 * 
 	 * @param content
 	 *            新闻正文
@@ -736,7 +778,7 @@ public class ReadabilityNews {
 		for (TextNode textNode : textNodeList) {
 			String text = textNode.text().trim();
 			int len = text.length();
-			if (len != 0) {
+			if (len > 3) {
 				firstTextNode = text;
 				break;
 			}

@@ -19,9 +19,9 @@ public class TestJsoup {
 			url = new URL(
 					"http://news.qq.com/a/20151029/008755.htm");
 			Document document = Jsoup.parse(url, 10000);
-			List<TextNode> textNodes = DOMUtil.getAllTextNodes(document.body());
-			System.out.println(textNodes.size());
-			for (TextNode textNode : textNodes) {
+			List<TextNode> textNodeList = DOMUtil.getAllTextNodes(document.body());
+			System.out.println(textNodeList.size());
+			for (TextNode textNode : textNodeList) {
 				String text = textNode.text().trim();
 				int len = text.length();
 				if (len != 0) {

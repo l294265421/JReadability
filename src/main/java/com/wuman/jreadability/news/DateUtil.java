@@ -8,7 +8,7 @@ public class DateUtil {
 	 * 1. 日期时间都有时，月日和时分是必须有的 2. 只有日期时，可以没年 3. 只有时分秒，可以没秒
 	 */
 	// 年
-	private final String dateTime = "((\\d{1,4}[-|\\/|年|\\.])?"
+	private final static String dateTimeRegex = "((\\d{1,4}[-|\\/|年|\\.])?"
 	// 月
 			+ "\\d{1,2}[-|\\/|月|\\.]"
 			// 日
@@ -41,7 +41,7 @@ public class DateUtil {
 	public static boolean validateDateTime(String candidate) {
 
 		String dateTime = null;
-		Pattern pattern = Pattern.compile(candidate);
+		Pattern pattern = Pattern.compile(dateTimeRegex);
 		Matcher matcher = pattern.matcher(candidate);
 		if (matcher.find()) {
 			dateTime = matcher.group();

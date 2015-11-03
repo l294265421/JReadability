@@ -18,7 +18,7 @@ import com.wuman.jreadability.news.ReadabilityNews;
 public class TestNews {
 
 	public static void main(String[] args) throws IOException {
-		URL url = new URL("http://news.qq.com/a/20151102/021831.htm?tu_biz=1.114.1.0");
+		URL url = new URL("http://finance.people.com.cn/n/2015/1103/c1004-27768632.html");
 		ReadabilityNews readability = new ReadabilityNews(url, 30000);
 		
 //		InputStream inputStream = new FileInputStream("/home/liyuncong/test/347具赴缅远征军遗骸将归国.html");
