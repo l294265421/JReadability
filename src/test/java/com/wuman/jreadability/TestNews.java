@@ -18,7 +18,7 @@ import com.wuman.jreadability.news.ReadabilityNews;
 public class TestNews {
 
 	public static void main(String[] args) throws IOException {
-		URL url = new URL("http://finance.people.com.cn/n/2015/1103/c1004-27768632.html");
+		URL url = new URL("http://news.sina.com.cn/c/nd/2015-11-11/doc-ifxkniup6302508.shtml");
 		ReadabilityNews readability = new ReadabilityNews(url, 30000);
 		
 //		InputStream inputStream = new FileInputStream("/home/liyuncong/test/347具赴缅远征军遗骸将归国.html");
@@ -39,7 +39,7 @@ public class TestNews {
 		System.out.println(cleanHtml);
 		
 		OutputStream outputStream = new FileOutputStream("/home/liyuncong/test1.html");
-		Writer writer = new OutputStreamWriter(outputStream, "gb2312");
+		Writer writer = new OutputStreamWriter(outputStream, "utf-8");
 		BufferedWriter bufferedWriter = new BufferedWriter(writer);
 		bufferedWriter.write(cleanHtml);
 		bufferedWriter.close();

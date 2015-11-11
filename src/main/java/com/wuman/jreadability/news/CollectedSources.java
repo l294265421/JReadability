@@ -9,7 +9,7 @@ import java.util.HashSet;
  *
  */
 public class CollectedSources {
-	private HashSet<String> sources;
+	private HashSet<String> sources = new HashSet<>();
 	
 	private CollectedSources() {
 		// 初始化sources
