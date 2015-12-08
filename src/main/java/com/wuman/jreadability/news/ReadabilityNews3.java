@@ -41,7 +41,6 @@ public class ReadabilityNews3 {
 	private final Document mDocument;
 	private String newsTitle;
 	private boolean result;
-	private String mBodyCache;
 
 	/**
 	 * 
@@ -104,12 +103,8 @@ public class ReadabilityNews3 {
 
 	private void init(boolean preserveUnlikelyCandidates) {
     	Element body = mDocument.body();
-        if (body != null && mBodyCache == null) {
-        	// mBodyCache保存这body里面的内容
-            mBodyCache = body.html();
-        }
-        
-        // 预处理
+
+    	// 预处理
      	prepDocument();
         
 		// 克隆文档body
@@ -156,10 +151,11 @@ public class ReadabilityNews3 {
 		}
      	
      	Node commoNode = null;
-     	for (Node node1 : articleContentParentList) {
+     	searchEnd: for (Node node1 : articleContentParentList) {
 			for (Node node2 : newsTitleNodeParentList) {
 				if (node1 == node2) {
 					commoNode = node1;
+					break searchEnd;
 				}
 			}
 		}
@@ -177,6 +173,8 @@ public class ReadabilityNews3 {
 		}
      	
      	// 测试
+     	boolean isParentTest1 = DOMUtil.isChild(bodyInUse, newsTitleNode);
+     	boolean isParentTest2 = DOMUtil.isChild(bodyInUse, mDocument);
      	Document document = null;
 		try {
 			document = Jsoup.parse(new File("newsWebPageHead.html"), "utf-8");
@@ -188,11 +186,12 @@ public class ReadabilityNews3 {
 		} else {
 			document.body().appendChild(commoNode);
 		}
-     	Helper.writeStringToFile(document.outerHtml(), "/home/liyuncong/commonNode.html");
+     	Helper.writeStringToFile(document.outerHtml(), "D:/test/commonNode.html");
+     	
+     	// newsTitleNode之前的文本都需要被删除；
+     	// articleContent之后的文本也需要被删除
      	
 		
-//		// todo:寻找刚好既包含新闻标题节点也包含正正文的节点，作为新的body节点
-//		
 //		// 删掉废弃标记词汇及其后面的所有文本节点
 //		removeByNoneArticleTextNode();
 //
@@ -242,27 +241,6 @@ public class ReadabilityNews3 {
 //			publishTimeSource = createElement("p", publishTime + " 来源:"
 //					+ source);
 //		}
-//		
-//		/**
-//		 * If we attempted to strip unlikely candidates on the first run
-//		 * through, and we ended up with no content, that may mean we stripped
-//		 * out the actual content so we couldn't parse it. So re-run init while
-//		 * preserving unlikely candidates to have a better shot at getting our
-//		 * content out properly. （如果我们在第一次运行时尝试去去除看上去不太可能是候选节点的节点，而且我们最终没有
-//		 * 得到内容，这也许意味着我们移除了实际的内容，因此我们不能解析它。因此，再次运行，这次
-//		 * 我们保留那些看上去不太可能是候选节点的节点来再次尝试获得我们想要的内容）
-//		 */
-//		if (isEmpty(getInnerText(articleContent, false))) {
-//			if (!preserveUnlikelyCandidates) {
-//				mDocument.body().html(mBodyCache);
-//				init(true);
-//				return;
-//			} else {
-//				articleContent
-//						.html("<p>Sorry, readability was unable to parse this page for content.</p>");
-//			}
-//		}
-//
 //		/* Build readability's DOM tree */
 //		// 创建readability的DOM树
 //		Element overlay = mDocument.createElement("div");
