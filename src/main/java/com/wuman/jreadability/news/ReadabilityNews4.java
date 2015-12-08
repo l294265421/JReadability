@@ -12,7 +12,6 @@ import java.io.Writer;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -24,265 +23,194 @@ import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
 
-/**
- * 抽取新闻内容，以易于阅读的方式展示出来；
- * 抽取行为以新闻标题和新闻正文为核心，因为就
- * 目前掌握的技术来说，它们是最容易获得的；
- * 这个“抽取新闻内容”实现可行的前提是，文档中
- * 一定存在新闻标题和新闻正文。
- * @author liyuncong
- *
- */
-public class ReadabilityNews3 {
+public class ReadabilityNews4 {
 
 	private static final String CONTENT_SCORE = "readabilityContentScore";
 
 	// A HTML Document
 	private final Document mDocument;
-	private String newsTitle;
-	private boolean result;
 	private String mBodyCache;
 
 	/**
 	 * 
-	 * @param html 待解析的HTML
+	 * @param html
+	 *            待解析的HTML
 	 */
-	public ReadabilityNews3(String html, String newsTitle) {
+	public ReadabilityNews4(String html) {
 		super();
 		mDocument = Jsoup.parse(html);
-		this.newsTitle = newsTitle;
 	}
 
 	/**
 	 * 
 	 * @param html 待解析的HTML
-	 * @param baseUri The URL where the HTML was retrieved from. Used to resolve
+	 * @param baseUri
+	 *            The URL where the HTML was retrieved from. Used to resolve
 	 *            relative URLs to absolute URLs, that occur before the HTML
 	 *            declares a <base href> tag.
 	 */
-	public ReadabilityNews3(String html, String baseUri, String newsTitle) {
+	public ReadabilityNews4(String html, String baseUri) {
 		super(); 
 		mDocument = Jsoup.parse(html, baseUri);
-		this.newsTitle = newsTitle;
 	}
 
 	/**
 	 * 
-	 * @param in file to load HTML from
-	 * @param charsetName 待解析的HTML的字符集
-	 * @param baseUri The URL where the HTML was retrieved from. Used to resolve
+	 * @param in
+	 *            file to load HTML from
+	 * @param charsetName
+	 *            待解析的HTML
+	 * @param baseUri
+	 *            The URL where the HTML was retrieved from. Used to resolve
 	 *            relative URLs to absolute URLs, that occur before the HTML
 	 *            declares a <base href> tag.
 	 * @throws IOException
 	 */
-	public ReadabilityNews3(File in, String charsetName, String baseUri, String newsTitle)
+	public ReadabilityNews4(File in, String charsetName, String baseUri)
 			throws IOException {
 		super();
 		mDocument = Jsoup.parse(in, charsetName, baseUri);
-		this.newsTitle = newsTitle;
 	}
 
 	/**
 	 * 
-	 * @param url URL to fetch (with a GET). The protocol must be http or https.
+	 * @param url
+	 *            URL to fetch (with a GET). The protocol must be http or https.
 	 * @param timeoutMillis
 	 *            Connection and read timeout, in milliseconds. If exceeded,
 	 *            IOException is thrown.
 	 * @throws IOException
 	 */
-	public ReadabilityNews3(URL url, int timeoutMillis, String newsTitle) throws IOException {
+	public ReadabilityNews4(URL url, int timeoutMillis) throws IOException {
 		super();
 		mDocument = Jsoup.parse(url, timeoutMillis);
-		this.newsTitle = newsTitle;
 	}
 
-	public ReadabilityNews3(Document doc, String newsTitle) {
+	public ReadabilityNews4(Document doc) {
 		super();
 		mDocument = doc;
-		this.newsTitle = newsTitle;
 	}
 
+	// @formatter:off
+	/**
+	 * Runs readability.
+	 * 
+	 * Workflow: 1. Prep the document by removing script tags, css, etc.
+	 * (通过移除script tags, css等准备document) 2. Build readability's DOM tree.
+	 * （构建readability树） 3. Grab the article content from the current dom tree.
+	 * （从dom树中抓取文章内容） 4. Replace the current DOM tree with the new one.
+	 * （替换用新的DOM树代替旧的） 5. Read peacefully.
+	 * 
+	 * @param preserveUnlikelyCandidates
+	 */
+	// @formatter:on
 	private void init(boolean preserveUnlikelyCandidates) {
-    	Element body = mDocument.body();
-        if (body != null && mBodyCache == null) {
-        	// mBodyCache保存这body里面的内容
-            mBodyCache = body.html();
-        }
-        
-        // 预处理
-     	prepDocument();
-        
-		// 克隆文档body
-        Element bodyInUse = body.clone();
+		// todo:寻找刚好既包含新闻标题节点也包含正正文的节点，作为新的body节点
 		
-		// 确定新闻title
-        Node newsTitleNode = null;
-        if (this.newsTitle == null) {
-    		// 获取网页title
-    		String articleTitle = getArticleTitle();
+		// 预处理
+		prepDocument();
+		Helper.writeStringToFile(mDocument.toString(), "/home/liyuncong/test1.html", "utf-8");
 
-    		// 获取新闻标题节点
-    		newsTitleNode = getNewsTitle(articleTitle, bodyInUse);
+		// 获取网页title
+		Element articleTitle = getArticleTitle();
+
+		// 删除body中新闻标题之前的文本节点，并获得新闻标题
+		String newsTitle = removeTextNodeInBodyForeTitle(articleTitle.text());
+		Element newsTitleElement = createElement("h1", newsTitle);
+		Helper.writeStringToFile(mDocument.toString(), "/home/liyuncong/test2.html", "utf-8");
+		
+		// 删掉废弃标记词汇及其后面的所有文本节点
+		removeByNoneArticleTextNode();
+
+		// 备份mDocument
+		Document mDocumentBackup = mDocument.clone();
+
+		// 获取正文
+		Element articleContent = grabArticle(preserveUnlikelyCandidates);
+		
+		/**
+		 * 清理得到的正文：
+		 * 1.删除我们不希望出现在正文中的标签，比如子文本节点等于标题的标签
+		 * 2.删除那些必须有子节点才有意义但是却没有子节点的表情
+		 */
+		
+		// 获得正文的第一个文本节点
+		String firstTextNode = getFirstTextNodeFromContent(articleContent);
+
+		// 获取新闻时间
+		String publishTime = getNewsPublishTime(newsTitle, firstTextNode,
+				mDocumentBackup);
+		if (publishTime != null &&publishTime.length() == 0) {
+			publishTime = null;
+		}
+
+		// 获取新闻来源
+		String source = getNewsSource1(newsTitle, firstTextNode,
+				mDocumentBackup);
+		if (source != null && source.length() == 0) {
+			source = null;
+		}
+		if (source == null) {
+			source = getNewsSource2(newsTitle, firstTextNode, 
+					mDocumentBackup);
 		} else {
-			// 获取新闻标题节点
-			newsTitleNode = getNewsTitle(bodyInUse, newsTitle);
+			CollectedSources.getInstance().add(source);
 		}
-        // 如果没有获取新闻标题节点，抽取失败
-        if (newsTitleNode == null) {
-			return;
+		if (source != null && source.length() == 0) {
+			source = null;
+		}
+
+		// 创建节点保存新闻发表时间和来源
+		Element publishTimeSource = null;
+		if (publishTime != null && source == null) {
+			publishTimeSource = createElement("p", publishTime);
+		} else if (publishTime == null && source != null) {
+			publishTimeSource = createElement("p", source);
+		} else if (publishTime != null || source != null) {
+			publishTimeSource = createElement("p", publishTime + " 来源:"
+					+ source);
 		}
 		
-		// 确定所有新闻正文的最近公共父节点
-     	Element articleContent = grabArticle(bodyInUse);
-     	// 如果没有获得包含正文的节点，抽取失败
-     	if (articleContent == null) {
-			return;
-		}
-		
-		//　确定新闻title和新闻正文的最近父节点的最近父节点
-		// 实现思路：通过遍历分别获取到俩条链表之后再比较求出公共节点
-     	List<Node> newsTitleNodeParentList = new LinkedList<>();
-     	Node newsTitleNodeParent = newsTitleNode.parent();
-     	while (newsTitleNodeParent != bodyInUse) {
-			newsTitleNodeParentList.add(newsTitleNodeParent);
-			newsTitleNodeParent = newsTitleNodeParent.parent();
-		}
-     	
-     	List<Node> articleContentParentList = new LinkedList<>();
-     	Node articleContentParent = articleContent.parent();
-     	while (articleContentParent != bodyInUse) {
-     		articleContentParentList.add(articleContentParent);
-     		articleContentParent = articleContentParent.parent();
-		}
-     	
-     	Node commoNode = null;
-     	for (Node node1 : articleContentParentList) {
-			for (Node node2 : newsTitleNodeParentList) {
-				if (node1 == node2) {
-					commoNode = node1;
-				}
-			}
-		}
-     	if (commoNode == null) {
-     		// 说明要么它们的公共父节点是body，
-     		// 要么newsTitleNode是articleContent的子元素；
-     		// 这里只需要判断newsTitleNode是否是articleContent的子元素，
-     		// 如果不是，它们的公共父节点是body；
-     		boolean isParent = DOMUtil.isChild(articleContent, newsTitleNode);
-     		if (isParent) {
-				commoNode = articleContent;
+		/**
+		 * If we attempted to strip unlikely candidates on the first run
+		 * through, and we ended up with no content, that may mean we stripped
+		 * out the actual content so we couldn't parse it. So re-run init while
+		 * preserving unlikely candidates to have a better shot at getting our
+		 * content out properly. （如果我们在第一次运行时尝试去去除看上去不太可能是候选节点的节点，而且我们最终没有
+		 * 得到内容，这也许意味着我们移除了实际的内容，因此我们不能解析它。因此，再次运行，这次
+		 * 我们保留那些看上去不太可能是候选节点的节点来再次尝试获得我们想要的内容）
+		 */
+		if (isEmpty(getInnerText(articleContent, false))) {
+			if (!preserveUnlikelyCandidates) {
+				mDocument.body().html(mBodyCache);
+				init(true);
+				return;
 			} else {
-				commoNode = bodyInUse;
+				articleContent
+						.html("<p>Sorry, readability was unable to parse this page for content.</p>");
 			}
 		}
-     	
-     	// 测试
-     	Document document = null;
-		try {
-			document = Jsoup.parse(new File("newsWebPageHead.html"), "utf-8");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-     	if (commoNode == bodyInUse) {
-			document.body().html(commoNode.outerHtml());
-		} else {
-			document.body().appendChild(commoNode);
-		}
-     	Helper.writeStringToFile(document.outerHtml(), "/home/liyuncong/commonNode.html");
-     	
+
+		/* Build readability's DOM tree */
+		// 创建readability的DOM树
+		Element overlay = mDocument.createElement("div");
+		Element innerDiv = mDocument.createElement("div");
 		
-//		// todo:寻找刚好既包含新闻标题节点也包含正正文的节点，作为新的body节点
-//		
-//		// 删掉废弃标记词汇及其后面的所有文本节点
-//		removeByNoneArticleTextNode();
-//
-//		// 备份mDocument
-//		Document mDocumentBackup = mDocument.clone();
-//
-//		
-//		/**
-//		 * 清理得到的正文：
-//		 * 1.删除我们不希望出现在正文中的标签，比如子文本节点等于标题的标签
-//		 * 2.删除那些必须有子节点才有意义但是却没有子节点的表情
-//		 */
-//		
-//		// 获得正文的第一个文本节点
-//		String firstTextNode = getFirstTextNodeFromContent(articleContent);
-//
-//		// 获取新闻时间
-//		String publishTime = getNewsPublishTime(newsTitle, firstTextNode,
-//				mDocumentBackup);
-//		if (publishTime != null &&publishTime.length() == 0) {
-//			publishTime = null;
-//		}
-//
-//		// 获取新闻来源
-//		String source = getNewsSource1(newsTitle, firstTextNode,
-//				mDocumentBackup);
-//		if (source != null && source.length() == 0) {
-//			source = null;
-//		}
-//		if (source == null) {
-//			source = getNewsSource2(newsTitle, firstTextNode, 
-//					mDocumentBackup);
-//		} else {
-//			CollectedSources.getInstance().add(source);
-//		}
-//		if (source != null && source.length() == 0) {
-//			source = null;
-//		}
-//
-//		// 创建节点保存新闻发表时间和来源
-//		Element publishTimeSource = null;
-//		if (publishTime != null && source == null) {
-//			publishTimeSource = createElement("p", publishTime);
-//		} else if (publishTime == null && source != null) {
-//			publishTimeSource = createElement("p", source);
-//		} else if (publishTime != null || source != null) {
-//			publishTimeSource = createElement("p", publishTime + " 来源:"
-//					+ source);
-//		}
-//		
-//		/**
-//		 * If we attempted to strip unlikely candidates on the first run
-//		 * through, and we ended up with no content, that may mean we stripped
-//		 * out the actual content so we couldn't parse it. So re-run init while
-//		 * preserving unlikely candidates to have a better shot at getting our
-//		 * content out properly. （如果我们在第一次运行时尝试去去除看上去不太可能是候选节点的节点，而且我们最终没有
-//		 * 得到内容，这也许意味着我们移除了实际的内容，因此我们不能解析它。因此，再次运行，这次
-//		 * 我们保留那些看上去不太可能是候选节点的节点来再次尝试获得我们想要的内容）
-//		 */
-//		if (isEmpty(getInnerText(articleContent, false))) {
-//			if (!preserveUnlikelyCandidates) {
-//				mDocument.body().html(mBodyCache);
-//				init(true);
-//				return;
-//			} else {
-//				articleContent
-//						.html("<p>Sorry, readability was unable to parse this page for content.</p>");
-//			}
-//		}
-//
-//		/* Build readability's DOM tree */
-//		// 创建readability的DOM树
-//		Element overlay = mDocument.createElement("div");
-//		Element innerDiv = mDocument.createElement("div");
-//		
-//		/* Glue the structure of our document together. */
-//		// 把我们的文档结构粘在一起
-//		// innerDiv.appendChild(newsTitleElement);
-//
-//		if (publishTimeSource != null) {
-//			innerDiv.appendChild(publishTimeSource);
-//		}
-//
-//		innerDiv.appendChild(articleContent);
-//		overlay.appendChild(innerDiv);
-//
-//		/* Clear the old HTML, insert the new content. */
-//		// 清除老的HTML,插入新的内容
-//		mDocument.body().html("");
-//		mDocument.body().prependChild(overlay);
+		/* Glue the structure of our document together. */
+		// 把我们的文档结构粘在一起
+		innerDiv.appendChild(newsTitleElement);
+
+		if (publishTimeSource != null) {
+			innerDiv.appendChild(publishTimeSource);
+		}
+
+		innerDiv.appendChild(articleContent);
+		overlay.appendChild(innerDiv);
+
+		/* Clear the old HTML, insert the new content. */
+		// 清除老的HTML,插入新的内容
+		mDocument.body().html("");
+		mDocument.body().prependChild(overlay);
 	}
 	
 	/**
@@ -327,9 +255,11 @@ public class ReadabilityNews3 {
 	 * 
 	 * @return
 	 */
-	protected String getArticleTitle() {
+	protected Element getArticleTitle() {
+		Element articleTitle = mDocument.createElement("h1");
 		String htmlTitle = mDocument.title();
-		return htmlTitle;
+		articleTitle.html(htmlTitle);
+		return articleTitle;
 	}
 
 	/**
@@ -346,56 +276,37 @@ public class ReadabilityNews3 {
 	}
 
 	/**
-	 * 获得新闻标题节点
-	 * @param title　网页标题
-	 * @param body　网页body元素
-	 * @return
+	 * 删除body节点中，在新闻标题之前的所有文本节点
+	 * （方法不优雅）
+	 * @param title 网页title，新闻标题包含其中
+	 * @return 返回新闻标题
 	 */
-	public Node getNewsTitle(String title, Element body) {
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(body);
-		Node newsTitleNode = null;
+	public String removeTextNodeInBodyForeTitle(String title) {
+		String newsTitle = "";
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument.body());
+
 		for (TextNode textNode : textNodeList) {
-			String candidate = textNode.text().trim();
-			int len = candidate.length();
+			String text = textNode.text().trim();
+			int len = text.length();
 			if (len != 0) {
 				// 这个地方还需要改进，得到text可能也只是新闻标题的一部分；
-				// 可以统计得到：
+				// 可以统计得到；
 				// 网页标题以新闻标题开头，新闻标题长度不短于网页标题的一半
-				if (((title.startsWith(candidate) 
-						&& candidate.length() >= title.length() / 2) ||
-						// 网页标题包含新闻标题，新闻标题长度不短于网页标题的三分之一
-						(title.contains(candidate) && 
-						candidate.length() >= title.length() / 3))
-						// 新闻标题长度大于等于５
-						&& (candidate.length() >= 5)) {
-					newsTitleNode = textNode;
+				if (((title.startsWith(text) 
+						&& text.length() >= title.length() / 2) ||
+						// 网页标题以新闻标题开头，新闻标题长度不短于网页标题的三分之一
+						(title.contains(text)) && 
+						text.length() >= title.length() / 3) 
+						&& (text.length() < title.length())
+						&& (text.length() >= 5)) {
+					newsTitle = text;
 					break;
+				} else {
+					 textNode.remove();
 				}
 			}
 		}
-		return newsTitleNode;
-	}
-	
-	/**
-	 * 获取新闻标题节点
-	 * @param body　网页body元素
-	 * @param newsTitle 新闻标题
-	 * @return
-	 */
-	public Node getNewsTitle(Element body, String newsTitle) {
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(body);
-		Node newsTitleNode = null;
-		for (TextNode textNode : textNodeList) {
-			String candidate = textNode.text().trim();
-			int len = candidate.length();
-			if (len != 0) {
-				if (candidate.equals(newsTitle)) {
-					newsTitleNode = textNode;
-					break;
-				}
-			}
-		}
-		return newsTitleNode;
+		return newsTitle;
 	}
 	
 	/**
@@ -636,8 +547,8 @@ public class ReadabilityNews3 {
 				if (!matcher.find()) {
 					dbg("Alternating div to p: " + node);
 					try {
-						// <div id="blog-news"></div> 变为 <p
-						// id="blog-news"></p>
+						// <div id="blog-news"></div> 变为 <div
+						// id="blog-news"></div>
 						node.tagName("p");
 					} catch (Exception e) {
 						dbg("Could not alter div to p, probably an IE restriction, reverting back to div.",
@@ -645,6 +556,18 @@ public class ReadabilityNews3 {
 					}
 				}
 			}
+		}
+		
+		// todo:移除所有文本标签两端的空白,并且从dom树中删除没有可读文字的文本节点
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument);
+		for (TextNode textNode : textNodeList) {
+			// 前后可能会出现12288，这是中文占位符
+			String newText = textNode.text().trim();
+			if (newText.length() == 0) {
+				textNode.remove();
+				continue;
+			}
+			textNode.text(newText);
 		}
 	}
 
@@ -749,17 +672,54 @@ public class ReadabilityNews3 {
 		incrementContentScore(node, getClassWeight(node));
 	}
 
-	protected Element grabArticle(Element body) {
+	/**
+	 * Using a variety of metrics (content score, classname, element types),
+	 * find the content that is most likely to be the stuff a user wants to
+	 * read. Then return it wrapped up in a div.
+	 * （用不同的测量标准（内容分数，类名，元素类型）来寻找用户最想读的内容。然后包装 在一个div中返回）
+	 * 
+	 * @param preserveUnlikelyCandidates
+	 *            是否保存看上去不像候选节点的元素
+	 * @return
+	 */
+	protected Element grabArticle(boolean preserveUnlikelyCandidates) {
+		/**
+		 * First, node prepping. Trash nodes that look cruddy (like ones with
+		 * the class name "comment", etc)（首先，节点准备。废弃一些节点（例如 类名为“comment”等）
+		 * Note: Assignment from index for performance.
+		 * See http://www.peachpit.com/articles/article.aspx?p=31567&seqNum=5
+		 * TODO: Shouldn't this be a reverse traversal?
+		 **/
+		for (Element node : mDocument.getAllElements()) {
+			/* Remove unlikely candidates */
+			// 移除看上去不像候选节点的元素
+			if (!preserveUnlikelyCandidates) {
+				String unlikelyMatchString = node.className() + node.id();
+				Matcher unlikelyCandidatesMatcher = Patterns.get(
+						Patterns.RegEx.UNLIKELY_CANDIDATES).matcher(
+						unlikelyMatchString);
+				Matcher maybeCandidateMatcher = Patterns.get(
+						Patterns.RegEx.OK_MAYBE_ITS_A_CANDIDATE).matcher(
+						unlikelyMatchString);
+				if (unlikelyCandidatesMatcher.find()
+						&& maybeCandidateMatcher.find()
+						&& !"body".equalsIgnoreCase(node.tagName())) {
+					node.remove();
+					dbg("Removing unlikely candidate - " + unlikelyMatchString);
+					continue;
+				}
+			}
+		}
+
 		/**
 		 * Loop through all paragraphs, and assign a score to them based on how
 		 * content-y they look. Then add their score to their parent node.
-		 * (遍历所有段落，基于内容给它们打分。然后把它们的分数加到它们的父节点上,也
-		 * 给一部分分数给祖父节点)
+		 * (遍历所有段落，基于内容给它们打分。然后把它们的分数加到它们的父节点上)
 		 * 
 		 * A score is determined by things like number of commas, class names,
 		 * etc. Maybe eventually link density. （分数有逗号，类名，链接密度等因素决定。）
 		 **/
-		Elements allParagraphs = body.getElementsByTag("p");
+		Elements allParagraphs = mDocument.getElementsByTag("p");
 		ArrayList<Element> candidates = new ArrayList<Element>();
 
 		for (Element node : allParagraphs) {
@@ -768,12 +728,10 @@ public class ReadabilityNews3 {
 			String innerText = getInnerText(node, true);
 
 			/*
-			 * If this paragraph is less than 15 characters, don't even count
-			 * it. （如果段落内的文本少于15个字符，就不考虑它）
-			 * 
-			 * todo: 15这个数字或许可以改得更加合理。
+			 * If this paragraph is less than 25 characters, don't even count
+			 * it. （如果段落内的文本少于25个字符，就不考虑它）
 			 */
-			if (innerText.length() < 15) {
+			if (innerText.length() < 25) {
 				continue;
 			}
 
@@ -798,8 +756,8 @@ public class ReadabilityNews3 {
 			contentScore++;
 
 			/* Add points for any commas within this paragraph */
-			// 段落内有多少逗号（英文逗号或者中文逗号），该节点就加多少分
-			contentScore += innerText.split(",|，").length;
+			// 段落内有多少逗号，该节点就加多少分
+			contentScore += innerText.split(",").length;
 
 			/*
 			 * For every 100 characters in this paragraph, add another point. Up
@@ -816,9 +774,9 @@ public class ReadabilityNews3 {
 		/**
 		 * After we've calculated scores, loop through all of the possible
 		 * candidate nodes we found and find the one with the highest score.
-		 * （在我们计算了分数之后，就可以遍历我们找到的所有可能的候选节点，找到得分最高的那一个）
+		 * （在我们计算了分数之后，就可以遍历我们找到的所有可能的候选节点，找到得分最高的 那一个）
 		 */
-		// 获得分数最高的元素
+		// 分数最高的元素
 		Element topCandidate = null;
 		for (Element candidate : candidates) {
 			/**
@@ -838,7 +796,31 @@ public class ReadabilityNews3 {
 			}
 		}
 
-		return topCandidate;
+		/**
+		 * If we still have no top candidate, just use the body as a last
+		 * resort. We also have to copy the body node so it is something we can
+		 * modify. （如果我们还没有一个顶级候选元素，我们可以使用body。我们也必须复制body节点， 因此我们可以修改它。）
+		 */
+		if (topCandidate == null
+				|| "body".equalsIgnoreCase(topCandidate.tagName())) {
+			topCandidate = mDocument.createElement("div");
+			topCandidate.html(mDocument.body().html());
+			mDocument.body().html("");
+			mDocument.body().appendChild(topCandidate);
+			initializeNode(topCandidate);
+		}
+
+		Element articleContent = mDocument.createElement("div");
+		articleContent.attr("id", "news-content");
+		articleContent.appendChild(topCandidate);
+		
+		/**
+		 * So we have all of the content that we need. Now we clean it up for
+		 * presentation. （因此我们拥有我们需要的所有内容了。现在我们来清洗它，为了很好的呈现）
+		 */
+		// prepArticle(articleContent);
+
+		return articleContent;
 	}
 
 	/**
@@ -886,8 +868,7 @@ public class ReadabilityNews3 {
 	
 	/**
 	 * Get the inner text of a node - cross browser compatibly. This also strips
-	 * out any excess whitespace to be found. （获得一个节点内部的文本。
-	 * 并且根据参数，判断是否移除额外的空白）
+	 * out any excess whitespace to be found. （获得一个节点内部的文本。并且根据参数，判断是否移除额外的空白）
 	 * 
 	 * @param e
 	 * @param normalizeSpaces
