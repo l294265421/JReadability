@@ -135,7 +135,7 @@ public class ReadabilityNews3 {
 		}
 		
 		//　确定新闻title和新闻正文的最近父节点的最近父节点
-		// 实现思路：通过遍历分别获取到俩条链表之后再比较求出公共节点
+		// 实现思路：通过遍历分别获取到两条链表之后再比较求出公共节点
      	List<Node> newsTitleNodeParentList = new LinkedList<>();
      	Node newsTitleNodeParent = newsTitleNode.parent();
      	while (newsTitleNodeParent != bodyInUse) {
@@ -151,6 +151,7 @@ public class ReadabilityNews3 {
 		}
      	
      	Node commoNode = null;
+     	boolean articleContentIsParentOfNewsTitleNode = false;
      	searchEnd: for (Node node1 : articleContentParentList) {
 			for (Node node2 : newsTitleNodeParentList) {
 				if (node1 == node2) {
@@ -164,8 +165,8 @@ public class ReadabilityNews3 {
      		// 要么newsTitleNode是articleContent的子元素；
      		// 这里只需要判断newsTitleNode是否是articleContent的子元素，
      		// 如果不是，它们的公共父节点是body；
-     		boolean isParent = DOMUtil.isChild(articleContent, newsTitleNode);
-     		if (isParent) {
+     		articleContentIsParentOfNewsTitleNode = DOMUtil.isChild(articleContent, newsTitleNode);
+     		if (articleContentIsParentOfNewsTitleNode) {
 				commoNode = articleContent;
 			} else {
 				commoNode = bodyInUse;
@@ -188,8 +189,66 @@ public class ReadabilityNews3 {
 		}
      	Helper.writeStringToFile(document.outerHtml(), "D:/test/commonNode.html");
      	
-     	// newsTitleNode之前的文本都需要被删除；
-     	// articleContent之后的文本也需要被删除
+     	// 1.newsTitleNode不是articleContent的子元素
+     	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
+     	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
+     	// 所有的左兄弟节点都需要被删除，从commonNode节点到articleContent
+     	// 节点的路径上的节点的所有的右兄弟节点都需要被删除；
+     	// 2. newsTitleNode是articleContent的子元素
+     	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
+     	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
+     	// 所有的左兄弟节点都需要被删除;
+     	if (!articleContentIsParentOfNewsTitleNode) {
+     		// 构造从commonNode节点到articleContent节点的路径(重用了前面的对象)
+     		articleContentParentList.clear();
+     		articleContentParentList.add(articleContent);
+         	articleContentParent = articleContent.parent();
+         	while (articleContentParent != commoNode) {
+				articleContentParentList.add(articleContentParent);
+				articleContentParent = articleContentParent.parent();
+			}
+         	// 删除相应元素
+         	for (Node node : articleContentParentList) {
+         		Node nextSibling = node.nextSibling();
+				while (nextSibling != null) {
+					Node temp = nextSibling.nextSibling();
+					nextSibling.remove();
+					nextSibling = temp;
+				}
+			}
+		}
+     	// 构造从commonNode节点到newsTitleNode节点的路径(重用了前面的对象)
+     	newsTitleNodeParentList.clear();
+     	newsTitleNodeParentList.add(newsTitleNode);
+     	newsTitleNodeParent = newsTitleNode.parent();
+     	while (newsTitleNodeParent != commoNode) {
+			newsTitleNodeParentList.add(newsTitleNodeParent);
+			newsTitleNodeParent = newsTitleNodeParent.parent();
+		}
+     	// 删除相应元素
+     	for (Node node : newsTitleNodeParentList) {
+			Node previousSibling = node.previousSibling();
+			while (previousSibling != null) {
+				Node temp = previousSibling.previousSibling();
+				previousSibling.remove();
+				previousSibling = temp;
+			}
+		}
+     	
+     	// 到这个时候，文档已经比较干净了
+     	// 测试；测试结果显示：该算法对组图也有效，真是surprise
+     	Document document1 = null;
+		try {
+			document1 = Jsoup.parse(new File("newsWebPageHead.html"), "utf-8");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+     	if (commoNode == bodyInUse) {
+			document1.body().html(commoNode.outerHtml());
+		} else {
+			document1.body().appendChild(commoNode);
+		}
+     	Helper.writeStringToFile(document1.outerHtml(), "D:/test/commonNode1.html");
      	
 		
 //		// 删掉废弃标记词汇及其后面的所有文本节点
