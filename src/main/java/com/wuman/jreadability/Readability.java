@@ -44,7 +44,7 @@ public class Readability {
     /**
      * 
      * @param in file to load HTML from
-     * @param charsetName 待解析的HTML
+     * @param charsetName 待解析的HTML的字符集
      * @param baseUri The URL where the HTML was retrieved from. 
      * Used to resolve relative URLs to absolute URLs, that occur 
      * before the HTML declares a <base href> tag.
