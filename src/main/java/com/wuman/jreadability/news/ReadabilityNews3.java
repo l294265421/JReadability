@@ -12,8 +12,10 @@ import java.io.Writer;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +25,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
+
+import com.sun.xml.internal.bind.v2.TODO;
 
 /**
  * 抽取新闻内容，以易于阅读的方式展示出来；
@@ -101,7 +105,15 @@ public class ReadabilityNews3 {
 		this.newsTitle = newsTitle;
 	}
 
+	/**
+	 * 处理分为两步：
+	 * 1.获得包含想要内容的节点
+	 * 2.删除获得节点中不要想的内容
+	 * @param preserveUnlikelyCandidates
+	 */
 	private void init(boolean preserveUnlikelyCandidates) {
+		// 第一部分
+		
     	Element body = mDocument.body();
 
     	// 预处理
@@ -151,7 +163,6 @@ public class ReadabilityNews3 {
 		}
      	
      	Node commoNode = null;
-     	boolean articleContentIsParentOfNewsTitleNode = false;
      	searchEnd: for (Node node1 : articleContentParentList) {
 			for (Node node2 : newsTitleNodeParentList) {
 				if (node1 == node2) {
@@ -165,8 +176,8 @@ public class ReadabilityNews3 {
      		// 要么newsTitleNode是articleContent的子元素；
      		// 这里只需要判断newsTitleNode是否是articleContent的子元素，
      		// 如果不是，它们的公共父节点是body；
-     		articleContentIsParentOfNewsTitleNode = DOMUtil.isChild(articleContent, newsTitleNode);
-     		if (articleContentIsParentOfNewsTitleNode) {
+     		boolean isParent = DOMUtil.isChild(articleContent, newsTitleNode);
+     		if (isParent) {
 				commoNode = articleContent;
 			} else {
 				commoNode = bodyInUse;
@@ -189,6 +200,8 @@ public class ReadabilityNews3 {
 		}
      	Helper.writeStringToFile(document.outerHtml(), "D:/test/commonNode.html");
      	
+     	// 第二部分
+     	
      	// 1.newsTitleNode不是articleContent的子元素
      	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
      	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
@@ -198,7 +211,7 @@ public class ReadabilityNews3 {
      	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
      	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
      	// 所有的左兄弟节点都需要被删除;
-     	if (!articleContentIsParentOfNewsTitleNode) {
+     	if (commoNode != articleContent) {
      		// 构造从commonNode节点到articleContent节点的路径(重用了前面的对象)
      		articleContentParentList.clear();
      		articleContentParentList.add(articleContent);
@@ -250,76 +263,107 @@ public class ReadabilityNews3 {
 		}
      	Helper.writeStringToFile(document1.outerHtml(), "D:/test/commonNode1.html");
      	
-		
-//		// 删掉废弃标记词汇及其后面的所有文本节点
+     	// 需要单独获得来源
+     	
+     	// 寻找最长文本节点
+     	Node longestTextNode = getLongestTextNode(articleContent);
+     	List<Node> seperateList = new LinkedList<Node>();
+     	seperateList.add(longestTextNode);
+     	Node longestTextNodeParent = longestTextNode.parent();
+     	while (longestTextNodeParent != commoNode) {
+			seperateList.add(longestTextNodeParent);
+			longestTextNodeParent = longestTextNodeParent.parent();
+		}
+     	
+     	// 删除在从commonNode节点到newsTitleNode节点的路径和
+ 		// 从commonNode节点到articleContent节点的路径之间的区域
+     	// 不想要的节点;
+     	// 删除所有不带href属性的a标签
+     	if (commoNode != articleContent) {
+			for (Node node : newsTitleNodeParentList) {
+				Node nextSibling = node.nextSibling();
+				while (!articleContentParentList.contains(nextSibling) && 
+						nextSibling != null) {
+					Node temp = nextSibling.nextSibling();
+					
+					// 删除垃圾a标签；
+					// 什么样的标签是垃圾a标签呢？
+					// 全部都是
+					if (nextSibling.getClass() == Element.class) {
+						Elements allA = ((Element)nextSibling).getElementsByTag("a");
+						Iterator<Element> iterator = allA.iterator();
+						while (iterator.hasNext()) {
+							iterator.next().remove();
+						}
+					}
+					
+					nextSibling = temp;
+				}
+			}
+			
+			for (Node node : articleContentParentList) {
+				Node previousSibling = node.previousSibling();
+				while (!newsTitleNodeParentList.contains(previousSibling) && 
+						previousSibling == null) {
+					Node temp = previousSibling.previousSibling();
+					
+					// 删除垃圾a标签；
+					// 什么样的标签是垃圾a标签呢？
+					// 全部都是
+					if (previousSibling.getClass() == Element.class) {
+						Elements allA = ((Element)previousSibling).getElementsByTag("a");
+						Iterator<Element> iterator = allA.iterator();
+						while (iterator.hasNext()) {
+							iterator.next().remove();
+						}
+					}
+					
+		     		previousSibling = temp;
+				}
+			}
+			
+		} else {
+			
+		}
+     	
+     	// 测试；
+     	Document document2 = null;
+		try {
+			document2 = Jsoup.parse(new File("newsWebPageHead.html"), "utf-8");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+     	if (commoNode == bodyInUse) {
+			document2.body().html(commoNode.outerHtml());
+		} else {
+			document2.body().appendChild(commoNode);
+		}
+     	Helper.writeStringToFile(document2.outerHtml(), "D:/test/commonNode2.html");
+     	
+		// 删掉废弃标记词汇及其后面的所有文本节点
 //		removeByNoneArticleTextNode();
-//
-//		// 备份mDocument
-//		Document mDocumentBackup = mDocument.clone();
-//
-//		
-//		/**
-//		 * 清理得到的正文：
-//		 * 1.删除我们不希望出现在正文中的标签，比如子文本节点等于标题的标签
-//		 * 2.删除那些必须有子节点才有意义但是却没有子节点的表情
-//		 */
-//		
-//		// 获得正文的第一个文本节点
-//		String firstTextNode = getFirstTextNodeFromContent(articleContent);
-//
-//		// 获取新闻时间
-//		String publishTime = getNewsPublishTime(newsTitle, firstTextNode,
-//				mDocumentBackup);
-//		if (publishTime != null &&publishTime.length() == 0) {
-//			publishTime = null;
-//		}
-//
-//		// 获取新闻来源
-//		String source = getNewsSource1(newsTitle, firstTextNode,
-//				mDocumentBackup);
-//		if (source != null && source.length() == 0) {
-//			source = null;
-//		}
-//		if (source == null) {
-//			source = getNewsSource2(newsTitle, firstTextNode, 
-//					mDocumentBackup);
-//		} else {
-//			CollectedSources.getInstance().add(source);
-//		}
-//		if (source != null && source.length() == 0) {
-//			source = null;
-//		}
-//
-//		// 创建节点保存新闻发表时间和来源
-//		Element publishTimeSource = null;
-//		if (publishTime != null && source == null) {
-//			publishTimeSource = createElement("p", publishTime);
-//		} else if (publishTime == null && source != null) {
-//			publishTimeSource = createElement("p", source);
-//		} else if (publishTime != null || source != null) {
-//			publishTimeSource = createElement("p", publishTime + " 来源:"
-//					+ source);
-//		}
-//		/* Build readability's DOM tree */
-//		// 创建readability的DOM树
-//		Element overlay = mDocument.createElement("div");
-//		Element innerDiv = mDocument.createElement("div");
-//		
-//		/* Glue the structure of our document together. */
-//		// 把我们的文档结构粘在一起
-//		// innerDiv.appendChild(newsTitleElement);
-//
-//		if (publishTimeSource != null) {
-//			innerDiv.appendChild(publishTimeSource);
-//		}
-//
-//		innerDiv.appendChild(articleContent);
-//		overlay.appendChild(innerDiv);
-//
-//		/* Clear the old HTML, insert the new content. */
-//		// 清除老的HTML,插入新的内容
-//		mDocument.body().html("");
-//		mDocument.body().prependChild(overlay);
+	}
+	
+	/**
+	 * 获得node所有后代文本节点中最长的那个节点;
+	 * {@link TODO}可以继续优化，用最长的节点块的第一个节点代替，
+	 * 来自论文——《基于行块分布函数的通用网页正文抽取》的启发
+	 * @param node
+	 * @return
+	 */
+	public Node getLongestTextNode(Node node) {
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(node);
+		Node longestTextNode = null;
+		int maxLen = 0;
+		for (TextNode textNode : textNodeList) {
+			String candidate = textNode.text().trim();
+			int len = candidate.length();
+			if (len > maxLen) {
+				maxLen = len;
+				longestTextNode = textNode;
+			} 
+		}
+		return longestTextNode;
 	}
 	
 	/**
@@ -455,41 +499,23 @@ public class ReadabilityNews3 {
 	}
 
 	/**
-	 * 在一系列文本节点范围内寻找发表时间
+	 * 在node的所有后代文本节点范围内寻找发表时间
 	 * 
-	 * @param start
-	 *            起点文本
-	 * @param end
-	 *            终点文本
-	 * @param element
-	 *            包好起点文本、终点文本的节点树
+	 * @param element jied节点树的根节点
 	 * @return 新闻发表时间；如果没找到就返回null
 	 */
-	public String getNewsPublishTime(String start, String end, Document element) {
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(element.body());
+	public String getNewsPublishTime(Node node) {
+		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(node);
 
 		String publishTime = null;
 
-		boolean isStart = false; // 起点判断
 		for (TextNode textNode : textNodeList) {
 			String text = textNode.text().trim();
 			int len = text.length();
 			if (len != 0) {
-				// 如果还没开始,就仅仅验证是否这里就是起点
-				if (!isStart) {
-					if (text.equals(start)) {
-						isStart = true;
-					}
-					continue;
-				}
-
-				// 如果已经开始，就寻找时间
 				boolean isPublishTime = DateUtil.validateDateTime(text);
 				if (isPublishTime) {
 					publishTime = text;
-					break;
-				}
-				if (text.equals(end)) {
 					break;
 				}
 			}

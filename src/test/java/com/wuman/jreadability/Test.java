@@ -19,8 +19,8 @@ import com.wuman.jreadability.news.ReadabilityNews3;
 public class Test {
 
 	public static void main(String[] args) throws IOException {
-//		URL url = new URL("http://news.sina.com.cn/c/nd/2015-11-11/doc-ifxkniup6302508.shtml");
-		URL url = new URL("http://pic.people.com.cn/n/2015/1203/c1016-27884040.html");
+		URL url = new URL("http://news.sina.com.cn/c/2015-12-10/doc-ifxmpnqm3005856.shtml");
+//		URL url = new URL("http://pic.people.com.cn/n/2015/1203/c1016-27884040.html");
 		ReadabilityNews3 readability = new ReadabilityNews3(url, 30000, null);
 		readability.init();
 //		InputStream inputStream = new FileInputStream("/home/liyuncong/test/347具赴缅远征军遗骸将归国.html");
@@ -46,5 +46,5 @@ public class Test {
 //		bufferedWriter.write(cleanHtml);
 //		bufferedWriter.close();
 	}
-
+	
 }
