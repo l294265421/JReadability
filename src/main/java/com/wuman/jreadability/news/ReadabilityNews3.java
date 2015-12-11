@@ -12,10 +12,12 @@ import java.io.Writer;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -140,9 +142,9 @@ public class ReadabilityNews3 {
 		}
 		
 		// 确定所有新闻正文的最近公共父节点
-     	Element articleContent = grabArticle(bodyInUse);
+     	Element newsContentNode = grabArticle(bodyInUse);
      	// 如果没有获得包含正文的节点，抽取失败
-     	if (articleContent == null) {
+     	if (newsContentNode == null) {
 			return;
 		}
 		
@@ -155,15 +157,15 @@ public class ReadabilityNews3 {
 			newsTitleNodeParent = newsTitleNodeParent.parent();
 		}
      	
-     	List<Node> articleContentParentList = new LinkedList<>();
-     	Node articleContentParent = articleContent.parent();
-     	while (articleContentParent != bodyInUse) {
-     		articleContentParentList.add(articleContentParent);
-     		articleContentParent = articleContentParent.parent();
+     	List<Node> newsContentNodeParentList = new LinkedList<>();
+     	Node newsContentNodeParent = newsContentNode.parent();
+     	while (newsContentNodeParent != bodyInUse) {
+     		newsContentNodeParentList.add(newsContentNodeParent);
+     		newsContentNodeParent = newsContentNodeParent.parent();
 		}
      	
      	Node commoNode = null;
-     	searchEnd: for (Node node1 : articleContentParentList) {
+     	searchEnd: for (Node node1 : newsContentNodeParentList) {
 			for (Node node2 : newsTitleNodeParentList) {
 				if (node1 == node2) {
 					commoNode = node1;
@@ -173,12 +175,12 @@ public class ReadabilityNews3 {
 		}
      	if (commoNode == null) {
      		// 说明要么它们的公共父节点是body，
-     		// 要么newsTitleNode是articleContent的子元素；
-     		// 这里只需要判断newsTitleNode是否是articleContent的子元素，
+     		// 要么newsTitleNode是newsContent的子元素；
+     		// 这里只需要判断newsTitleNode是否是newsContent的子元素，
      		// 如果不是，它们的公共父节点是body；
-     		boolean isParent = DOMUtil.isChild(articleContent, newsTitleNode);
+     		boolean isParent = DOMUtil.isChild(newsContentNode, newsTitleNode);
      		if (isParent) {
-				commoNode = articleContent;
+				commoNode = newsContentNode;
 			} else {
 				commoNode = bodyInUse;
 			}
@@ -202,33 +204,26 @@ public class ReadabilityNews3 {
      	
      	// 第二部分
      	
-     	// 1.newsTitleNode不是articleContent的子元素
+     	// 1.newsTitleNode不是newsContentNode的子元素
      	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
      	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
-     	// 所有的左兄弟节点都需要被删除，从commonNode节点到articleContent
+     	// 所有的左兄弟节点都需要被删除，从commonNode节点到newsContentNode
      	// 节点的路径上的节点的所有的右兄弟节点都需要被删除；
-     	// 2. newsTitleNode是articleContent的子元素
+     	// 2. newsTitleNode是newsContentNode的子元素
      	// 在dom树中，一个节点左边的兄弟节点出现该节点的前面（在文本中），
      	// 这也就意味着，从commonNode节点到newsTitleNode节点的路径上的的节点
      	// 所有的左兄弟节点都需要被删除;
-     	if (commoNode != articleContent) {
-     		// 构造从commonNode节点到articleContent节点的路径(重用了前面的对象)
-     		articleContentParentList.clear();
-     		articleContentParentList.add(articleContent);
-         	articleContentParent = articleContent.parent();
-         	while (articleContentParent != commoNode) {
-				articleContentParentList.add(articleContentParent);
-				articleContentParent = articleContentParent.parent();
+     	if (commoNode != newsContentNode) {
+     		// 构造从commonNode节点到newsContent节点的路径(重用了前面的对象)
+     		newsContentNodeParentList.clear();
+     		newsContentNodeParentList.add(newsContentNode);
+         	newsContentNodeParent = newsContentNode.parent();
+         	while (newsContentNodeParent != commoNode) {
+         		newsContentNodeParentList.add(newsContentNodeParent);
+         		newsContentNodeParent = newsContentNodeParent.parent();
 			}
          	// 删除相应元素
-         	for (Node node : articleContentParentList) {
-         		Node nextSibling = node.nextSibling();
-				while (nextSibling != null) {
-					Node temp = nextSibling.nextSibling();
-					nextSibling.remove();
-					nextSibling = temp;
-				}
-			}
+         	DOMUtil.deleteLeftOrRight(newsContentNodeParentList, "right");
 		}
      	// 构造从commonNode节点到newsTitleNode节点的路径(重用了前面的对象)
      	newsTitleNodeParentList.clear();
@@ -239,14 +234,7 @@ public class ReadabilityNews3 {
 			newsTitleNodeParent = newsTitleNodeParent.parent();
 		}
      	// 删除相应元素
-     	for (Node node : newsTitleNodeParentList) {
-			Node previousSibling = node.previousSibling();
-			while (previousSibling != null) {
-				Node temp = previousSibling.previousSibling();
-				previousSibling.remove();
-				previousSibling = temp;
-			}
-		}
+     	DOMUtil.deleteLeftOrRight(newsTitleNodeParentList, "left");
      	
      	// 到这个时候，文档已经比较干净了
      	// 测试；测试结果显示：该算法对组图也有效，真是surprise
@@ -263,10 +251,8 @@ public class ReadabilityNews3 {
 		}
      	Helper.writeStringToFile(document1.outerHtml(), "D:/test/commonNode1.html");
      	
-     	// 需要单独获得来源
-     	
      	// 寻找最长文本节点
-     	Node longestTextNode = getLongestTextNode(articleContent);
+     	Node longestTextNode = getLongestTextNode(newsContentNode);
      	List<Node> seperateList = new LinkedList<Node>();
      	seperateList.add(longestTextNode);
      	Node longestTextNodeParent = longestTextNode.parent();
@@ -276,52 +262,41 @@ public class ReadabilityNews3 {
 		}
      	
      	// 删除在从commonNode节点到newsTitleNode节点的路径和
- 		// 从commonNode节点到articleContent节点的路径之间的区域
-     	// 不想要的节点;
-     	// 删除所有不带href属性的a标签
-     	if (commoNode != articleContent) {
-			for (Node node : newsTitleNodeParentList) {
-				Node nextSibling = node.nextSibling();
-				while (!articleContentParentList.contains(nextSibling) && 
-						nextSibling != null) {
-					Node temp = nextSibling.nextSibling();
-					
-					// 删除垃圾a标签；
-					// 什么样的标签是垃圾a标签呢？
-					// 全部都是
-					if (nextSibling.getClass() == Element.class) {
-						Elements allA = ((Element)nextSibling).getElementsByTag("a");
-						Iterator<Element> iterator = allA.iterator();
-						while (iterator.hasNext()) {
-							iterator.next().remove();
+ 		// 从commonNode节点到newsContent节点的路径之间的区域
+     	// 中 会影响页面显示且不想要的节点;
+     	// 这部分等于是对这个区域的遍历；
+     	if (commoNode != newsContentNode) {
+     		// 删除垃圾a标签；
+			// 什么样的标签是垃圾a标签呢？
+			// 1. 锚文本长度小于3的
+			// 2. 包含非文本节点的子节点的
+     		// 3. 上两条是为了这个目的，删除锚文本不是来源的所有a标签
+			// 基于a标签，我是基于这样的认识得到上面的结论：
+			// 1. a标签里面不会再嵌套a标签
+     		DOMUtil.travers(newsTitleNodeParentList, newsContentNodeParentList, new NodeOperate() {
+				
+				@Override
+				public void action(Node node) {
+					if (node.getClass() == Element.class) {
+						Elements allA = ((Element)node).getElementsByTag("a");
+						Iterator<Element> aiterator = allA.iterator();
+						while (aiterator.hasNext()) {
+							Element temp1 = aiterator.next();
+							String temp1Str = temp1.text().replace(" ", "");
+							if (temp1Str.length() < 3 || temp1.childNodes().size() != 1) {
+								temp1.remove();
+							}
 						}
 					}
-					
-					nextSibling = temp;
 				}
-			}
-			
-			for (Node node : articleContentParentList) {
-				Node previousSibling = node.previousSibling();
-				while (!newsTitleNodeParentList.contains(previousSibling) && 
-						previousSibling == null) {
-					Node temp = previousSibling.previousSibling();
-					
-					// 删除垃圾a标签；
-					// 什么样的标签是垃圾a标签呢？
-					// 全部都是
-					if (previousSibling.getClass() == Element.class) {
-						Elements allA = ((Element)previousSibling).getElementsByTag("a");
-						Iterator<Element> iterator = allA.iterator();
-						while (iterator.hasNext()) {
-							iterator.next().remove();
-						}
-					}
-					
-		     		previousSibling = temp;
-				}
-			}
-			
+			});
+     		
+     	// 删除所有iframe元素
+     	DOMUtil.deleteAllElementByTagName(newsTitleNodeParentList, 
+     			newsContentNodeParentList, "iframe");
+     	// 删除所有input元素
+     	DOMUtil.deleteAllElementByTagName(newsTitleNodeParentList, 
+     			newsContentNodeParentList, "input");
 		} else {
 			
 		}
@@ -340,7 +315,9 @@ public class ReadabilityNews3 {
 		}
      	Helper.writeStringToFile(document2.outerHtml(), "D:/test/commonNode2.html");
      	
-		// 删掉废弃标记词汇及其后面的所有文本节点
+		// 删掉废弃标记词汇及其后面的所有文本节点；
+     	// http://it.people.com.cn/n/2015/1211/c1009-27913081.html 这个
+     	// 网页说明了这一步的必要性；
 //		removeByNoneArticleTextNode();
 	}
 	

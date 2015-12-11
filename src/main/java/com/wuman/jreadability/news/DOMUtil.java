@@ -1,11 +1,15 @@
 package com.wuman.jreadability.news;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
+import org.jsoup.select.Elements;
 import org.jsoup.select.NodeVisitor;
 /**
  * 
@@ -77,6 +81,153 @@ public class DOMUtil {
 			for (Node child : children) {
 				traverse(child, nodeOperate);
 			}
+		}
+	}
+	
+	/**
+	 * 遍历树中夹在leftPath和rightPath之间的区域，对遇到的元素进行操作；
+	 * @param leftPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
+	 * 父节点和rightPath中最后一个的父节点是同一节点
+	 * @param rightPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
+	 * 父节点和leftPath中最后一个的父节点是同一节点
+	 * @param nodeOperate
+	 */
+	public static void travers(List<Node> leftPath, List<Node> rightPath, NodeOperate nodeOperate) {
+ 		int leftPathSize = leftPath.size();
+ 		// 没访问最后一个元素
+ 		for(int i = 0; i < leftPathSize - 1; i++) {
+ 			Node node = leftPath.get(i);
+ 			// 这是一个可能有孩子节点的节点
+			Node nextSibling = node.nextSibling();
+			while (nextSibling != null) {
+				Node temp = nextSibling.nextSibling();
+				
+				nodeOperate.action(nextSibling);
+				
+				nextSibling = temp;
+			}
+ 		}
+ 		
+ 		int rightPathSize = rightPath.size();
+ 		// 没访问最后一个元素
+ 		for(int i = 0; i < rightPathSize - 1; i++) {
+ 			Node node = rightPath.get(i);
+ 			// 这是一个可能有孩子节点的节点
+			Node previousSibling = node.previousSibling();
+			while (previousSibling != null) {
+				Node temp = previousSibling.nextSibling();
+				
+				nodeOperate.action(previousSibling);
+				
+				previousSibling = temp;
+			}
+ 		}
+ 		
+		Node lastLeftPathNode = leftPath.get(leftPathSize - 1);
+		Node lastRightPathNode = rightPath.get(rightPathSize - 1);
+		// 这是一个可能有孩子节点的节点
+		Node lastNextSibling = lastLeftPathNode.nextSibling();
+		while (lastNextSibling != lastRightPathNode) {
+			Node temp = lastNextSibling.nextSibling();
+			
+			nodeOperate.action(lastNextSibling);
+			
+			lastNextSibling = temp;
+		}
+		
+	}
+	
+	/**
+	 * 遍历树中leftPath右边区域，对遇到的元素进行操作；
+	 * @param leftPath 树中的一条链表，后一个元素是前一个元素的父节点
+	 * @param nodeOperate
+	 */
+	public static void travers(List<Node> leftPath, NodeOperate nodeOperate) {
+ 		int leftPathSize = leftPath.size();
+ 		for(int i = 0; i < leftPathSize; i++) {
+ 			Node node = leftPath.get(i);
+ 			// 这是一个可能有孩子节点的节点
+			Node nextSibling = node.nextSibling();
+			while (nextSibling != null) {
+				Node temp = nextSibling.nextSibling();
+				
+				nodeOperate.action(nextSibling);
+				
+				nextSibling = temp;
+			}
+ 		}
+	}
+	
+	/**
+	 * 遍历树中rightPath左边边区域，对遇到的元素进行操作；
+	 * @param rightPath 树中的一条链表，后一个元素是前一个元素的父节点
+	 * @param nodeOperate
+	 */
+	public static void travers(NodeOperate nodeOperate, List<Node> rightPath) {
+ 		int rightPathSize = rightPath.size();
+ 		for(int i = 0; i < rightPathSize; i++) {
+ 			Node node = rightPath.get(i);
+ 			// 这是一个可能有孩子节点的节点
+			Node previousSibling = node.previousSibling();
+			while (previousSibling != null) {
+				Node temp = previousSibling.previousSibling();
+				
+				nodeOperate.action(previousSibling);
+				
+				previousSibling = temp;
+			}
+ 		}
+	}
+	
+	/**
+	 * 
+	 * 遍历树中夹在leftPath和rightPath之间的区域，对删除指定标签名的元素；
+	 * @param leftPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
+	 * 父节点和rightPath中最后一个的父节点是同一节点
+	 * @param rightPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
+	 * 父节点和leftPath中最后一个的父节点是同一节点
+	 * @param tagName 要删除的节点名
+	 */
+	public static void deleteAllElementByTagName(List<Node> leftPath, List<Node> rightPath, String tagName) {
+		final String internalTagName = tagName;
+		DOMUtil.travers(leftPath, rightPath, new NodeOperate() {
+			
+			@Override
+			public void action(Node node) {
+				if (node.getClass() == Element.class) {					
+					// 删除所有tagName元素
+					Elements allIframe = ((Element)node).getElementsByTag(internalTagName);
+					Iterator<Element> iframeIterator = allIframe.iterator();
+					while (iframeIterator.hasNext()) {
+						iframeIterator.next().remove();
+					}
+				}
+				
+			}
+		});
+	}
+	
+	/**
+	 * 删除path左边或者右边的元素
+	 * @param path 树中的一条链表，后一个元素是前一个元素的父节点
+	 */
+	public static void deleteLeftOrRight(List<Node> path, String leftOrRight) {
+		if (leftOrRight.equals("right")) {
+			travers(path, new NodeOperate() {
+				
+				@Override
+				public void action(Node node) {
+					node.remove();
+				}
+			});
+		} else {
+			travers(new NodeOperate() {
+				
+				@Override
+				public void action(Node node) {
+					node.remove();
+				}
+			}, path);
 		}
 	}
 }
