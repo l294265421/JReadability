@@ -263,7 +263,7 @@ public class ReadabilityNews3 {
      	
      	// 删除在从commonNode节点到newsTitleNode节点的路径和
  		// 从commonNode节点到newsContent节点的路径之间的区域
-     	// 中 会影响页面显示且不想要的节点;
+     	// 中会影响页面显示且不想要的节点;
      	// 这部分等于是对这个区域的遍历；
      	if (commoNode != newsContentNode) {
      		// 删除垃圾a标签；
@@ -298,7 +298,37 @@ public class ReadabilityNews3 {
      	DOMUtil.deleteAllElementByTagName(newsTitleNodeParentList, 
      			newsContentNodeParentList, "input");
 		} else {
-			
+     		// 删除垃圾a标签；
+			// 什么样的标签是垃圾a标签呢？
+			// 1. 锚文本长度小于3的
+			// 2. 包含非文本节点的子节点的
+     		// 3. 上两条是为了这个目的，删除锚文本不是来源的所有a标签
+			// 基于a标签，我是基于这样的认识得到上面的结论：
+			// 1. a标签里面不会再嵌套a标签
+     		DOMUtil.travers(newsTitleNodeParentList, seperateList, new NodeOperate() {
+				
+				@Override
+				public void action(Node node) {
+					if (node.getClass() == Element.class) {
+						Elements allA = ((Element)node).getElementsByTag("a");
+						Iterator<Element> aiterator = allA.iterator();
+						while (aiterator.hasNext()) {
+							Element temp1 = aiterator.next();
+							String temp1Str = temp1.text().replace(" ", "");
+							if (temp1Str.length() < 2 || temp1.childNodes().size() != 1) {
+								temp1.remove();
+							}
+						}
+					}
+				}
+			});
+     		
+     	// 删除所有iframe元素
+     	DOMUtil.deleteAllElementByTagName(newsTitleNodeParentList, 
+     			seperateList, "iframe");
+     	// 删除所有input元素
+     	DOMUtil.deleteAllElementByTagName(newsTitleNodeParentList, 
+     			seperateList, "input");
 		}
      	
      	// 测试；
