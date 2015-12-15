@@ -14,6 +14,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.net.URL;
 
+import com.wuman.jreadability.news.Helper;
 import com.wuman.jreadability.news.ReadabilityNews;
 import com.wuman.jreadability.news.ReadabilityNews5;
 
@@ -25,7 +26,8 @@ public class Test {
 //		ReadabilityNews5 readability = new ReadabilityNews5(new File("D:\\test\\10index.html"), "utf-8", "http://www.cnblogs.com/ybwang/archive/2011/10/04/lastOrderTraverse.html", null);
 		ReadabilityNews5 readability = new ReadabilityNews5(url, 5000, null);
 		readability.init();
-
+		String cleanHtml = readability.outerHtml();
+		Helper.writeStringToFile(cleanHtml, "D:/test/commonNodeEndVersion.html");
 	}
 	
 }

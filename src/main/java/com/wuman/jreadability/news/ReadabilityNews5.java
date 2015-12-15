@@ -338,41 +338,12 @@ public class ReadabilityNews5 {
 		} else {
 			document2.body().appendChild(commoNode);
 		}
-     	this.success = true;
-     	outDocument = document2;
      	Helper.writeStringToFile(document2.outerHtml(), "D:/test/commonNode2.html");
      	
 		// 删掉废弃标记词汇及其后面的所有文本节点；
      	// http://it.people.com.cn/n/2015/1211/c1009-27913081.html 这个
      	// 网页说明了这一步的必要性；
-//		removeByNoneArticleTextNode();
-     	System.out.println(seperateList.get(0));
-        final List<Node> noneArticleFlagNodeList = new LinkedList<Node>();
-        DOMUtil.travers(seperateList,  new NodeOperate(){
-
-      	@Override
-      	public void action(Node node) {
-      		if( node instanceof TextNode){
-      			//noneArticleFlagNodeList.add(node);
-      			String text=((TextNode) node).text().trim();     		
-      			if (text.startsWith("相关新闻")) {
-      				noneArticleFlagNodeList.add(node);
-				}
-      			}    	
-      	}
-  
-        });
-
-      	for (Node node : noneArticleFlagNodeList) {//对获得的list进行遍历，
-      	Node	nodeParent= node.parent();
-      	List<Node> flagNode= new LinkedList<Node>();// textNode到 longestTextNode的路径
-      		while(nodeParent!=newsContentNode){
-      			flagNode.add(nodeParent);
-      		nodeParent= nodeParent.parent();	
-      		}
-      	DOMUtil.deleteLeftOrRight(flagNode, "right");
-      	
-      	}
+     	removeByNoneArticleTextNode(seperateList, newsContentNode); //调用方法，删除垃圾节点
       	
       	Document document3 = null;
       	try {
@@ -386,6 +357,9 @@ public class ReadabilityNews5 {
       		document3.body().appendChild(commoNode);
       	}
        	Helper.writeStringToFile(document3.outerHtml(), "D:/test/commonNode3.html");
+       	
+       	this.success = true;
+     	outDocument = document3;
 	}
 	
 	/**
@@ -444,10 +418,12 @@ public class ReadabilityNews5 {
 	 */
 	public final String outerHtml() {
 		if (this.success) {
-			this.outDocument.outerHtml();
+			return this.outDocument.outerHtml();
 		}
 		return "";
 	}
+	
+	
 
 	/**
 	 * Get the article title as an H1. Currently just uses document.title, we
@@ -530,21 +506,36 @@ public class ReadabilityNews5 {
 	/**
 	 * 通过“非正文内容”标记删除文本节点
 	 */
-	private void removeByNoneArticleTextNode() {
-		boolean isDelete = false;
-		List<TextNode> textNodeList = DOMUtil.getAllTextNodes(mDocument.body());
-		for (TextNode textNode : textNodeList) {
-			String text = textNode.text().trim();
-			int len = text.length();
-			if (len != 0 && NoneArticleFlag.isFlag(text)) {
-				isDelete = true;
+	private void removeByNoneArticleTextNode(List<Node> list, Node contentNode) {
+		final List<Node> noneArticleFlagNodeList = new LinkedList<Node>();//定义一个List，用于存放非文本节点
+	    DOMUtil.travers(list,  new NodeOperate(){ //遍历seperateList，
+
+		@Override
+		public void action(Node node) {
+			if( node instanceof TextNode){// 如果node是TextNode
+				//noneArticleFlagNodeList.add(node);
+				String text=((TextNode) node).text().trim();// 取出textnode里面的值
+				if(NoneArticleFlag.isFlag(text)){                           //如果text是flags里面的内容
+					noneArticleFlagNodeList.add(node);//将text的节点添加到分文吧列表里面去
+				}
+		     }
 			}
-			
-			if (isDelete) {
-				textNode.remove();
+		  });
+
+		for (Node node1 : noneArticleFlagNodeList) {//对获得的list进行遍历，
+		Node nodeParent= node1.parent();//           获得node节点的parent节点
+		List<Node> flagNode= new LinkedList<Node>();// textNode到 newsContentNode的路径
+			while(nodeParent!=contentNode){
+				flagNode.add(nodeParent);    //如果不是，则继续添加节点
+			    nodeParent= nodeParent.parent();	
 			}
+		       DOMUtil.deleteLeftOrRight(flagNode, "right");// 调用方法删除路径的右边节点。
+		 }
+		
+		for (Node node : noneArticleFlagNodeList) {// 删除非文本节点列表里面的剩余节点
+		node.remove();	
 		}
-	}
+		}
 
 	/**
 	 * 在node的所有后代文本节点范围内寻找发表时间
