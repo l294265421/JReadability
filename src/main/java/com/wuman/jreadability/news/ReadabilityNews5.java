@@ -39,20 +39,21 @@ import com.sun.xml.internal.bind.v2.TODO;
  * @author liyuncong
  *
  */
-public class ReadabilityNews3 {
+public class ReadabilityNews5 {
 
 	private static final String CONTENT_SCORE = "readabilityContentScore";
 
 	// A HTML Document
 	private final Document mDocument;
 	private String newsTitle;
-	private boolean result;
+	private boolean success;
+	private Document outDocument;
 
 	/**
 	 * 
 	 * @param html 待解析的HTML
 	 */
-	public ReadabilityNews3(String html, String newsTitle) {
+	public ReadabilityNews5(String html, String newsTitle) {
 		super();
 		mDocument = Jsoup.parse(html);
 		this.newsTitle = newsTitle;
@@ -65,7 +66,7 @@ public class ReadabilityNews3 {
 	 *            relative URLs to absolute URLs, that occur before the HTML
 	 *            declares a <base href> tag.
 	 */
-	public ReadabilityNews3(String html, String baseUri, String newsTitle) {
+	public ReadabilityNews5(String html, String baseUri, String newsTitle) {
 		super(); 
 		mDocument = Jsoup.parse(html, baseUri);
 		this.newsTitle = newsTitle;
@@ -80,7 +81,7 @@ public class ReadabilityNews3 {
 	 *            declares a <base href> tag.
 	 * @throws IOException
 	 */
-	public ReadabilityNews3(File in, String charsetName, String baseUri, String newsTitle)
+	public ReadabilityNews5(File in, String charsetName, String baseUri, String newsTitle)
 			throws IOException {
 		super();
 		mDocument = Jsoup.parse(in, charsetName, baseUri);
@@ -95,13 +96,13 @@ public class ReadabilityNews3 {
 	 *            IOException is thrown.
 	 * @throws IOException
 	 */
-	public ReadabilityNews3(URL url, int timeoutMillis, String newsTitle) throws IOException {
+	public ReadabilityNews5(URL url, int timeoutMillis, String newsTitle) throws IOException {
 		super();
 		mDocument = Jsoup.parse(url, timeoutMillis);
 		this.newsTitle = newsTitle;
 	}
 
-	public ReadabilityNews3(Document doc, String newsTitle) {
+	public ReadabilityNews5(Document doc, String newsTitle) {
 		super();
 		mDocument = doc;
 		this.newsTitle = newsTitle;
@@ -175,8 +176,8 @@ public class ReadabilityNews3 {
 		}
      	if (commoNode == null) {
      		// 说明要么它们的公共父节点是body，
-     		// 要么newsTitleNode是newsContent的子元素；
-     		// 这里只需要判断newsTitleNode是否是newsContent的子元素，
+     		// 要么newsTitleNode是newsContentNode的子元素；
+     		// 这里只需要判断newsTitleNode是否是newsContentNode的子元素，
      		// 如果不是，它们的公共父节点是body；
      		boolean isParent = DOMUtil.isChild(newsContentNode, newsTitleNode);
      		if (isParent) {
@@ -200,7 +201,7 @@ public class ReadabilityNews3 {
 		} else {
 			document.body().appendChild(commoNode);
 		}
-     	Helper.writeStringToFile(document.outerHtml(), "D:/test/commonNode.html");
+     	 Helper.writeStringToFile(document.outerHtml(), "D:/test/commonNode.html");
      	
      	// 第二部分
      	
@@ -249,7 +250,7 @@ public class ReadabilityNews3 {
 		} else {
 			document1.body().appendChild(commoNode);
 		}
-     	Helper.writeStringToFile(document1.outerHtml(), "D:/test/commonNode1.html");
+     	 Helper.writeStringToFile(document1.outerHtml(), "D:/test/commonNode1.html");
      	
      	// 寻找最长文本节点
      	Node longestTextNode = getLongestTextNode(newsContentNode);
@@ -277,15 +278,12 @@ public class ReadabilityNews3 {
 				
 				@Override
 				public void action(Node node) {
-					if (node.getClass() == Element.class) {
-						Elements allA = ((Element)node).getElementsByTag("a");
-						Iterator<Element> aiterator = allA.iterator();
-						while (aiterator.hasNext()) {
-							Element temp1 = aiterator.next();
-							String temp1Str = temp1.text().replace(" ", "");
-							if (temp1Str.length() < 3 || temp1.childNodes().size() != 1) {
-								temp1.remove();
-							}
+					String nodeName = node.nodeName();
+					if (nodeName.equals("a")) {
+						Element temp1 = (Element) node;
+						String temp1Str = temp1.text().replace(" ", "");
+						if (temp1Str.length() < 3 || temp1.childNodes().size() != 1) {
+							temp1.remove();
 						}
 					}
 				}
@@ -309,15 +307,12 @@ public class ReadabilityNews3 {
 				
 				@Override
 				public void action(Node node) {
-					if (node.getClass() == Element.class) {
-						Elements allA = ((Element)node).getElementsByTag("a");
-						Iterator<Element> aiterator = allA.iterator();
-						while (aiterator.hasNext()) {
-							Element temp1 = aiterator.next();
-							String temp1Str = temp1.text().replace(" ", "");
-							if (temp1Str.length() < 2 || temp1.childNodes().size() != 1) {
-								temp1.remove();
-							}
+					String nodeName = node.nodeName();
+					if (nodeName.equals("a")) {
+						Element temp1 = (Element) node;
+						String temp1Str = temp1.text().replace(" ", "");
+						if (temp1Str.length() < 2 || temp1.childNodes().size() != 1) {
+							temp1.remove();
 						}
 					}
 				}
@@ -343,12 +338,54 @@ public class ReadabilityNews3 {
 		} else {
 			document2.body().appendChild(commoNode);
 		}
+     	this.success = true;
+     	outDocument = document2;
      	Helper.writeStringToFile(document2.outerHtml(), "D:/test/commonNode2.html");
      	
 		// 删掉废弃标记词汇及其后面的所有文本节点；
      	// http://it.people.com.cn/n/2015/1211/c1009-27913081.html 这个
      	// 网页说明了这一步的必要性；
 //		removeByNoneArticleTextNode();
+     	System.out.println(seperateList.get(0));
+        final List<Node> noneArticleFlagNodeList = new LinkedList<Node>();
+        DOMUtil.travers(seperateList,  new NodeOperate(){
+
+      	@Override
+      	public void action(Node node) {
+      		if( node instanceof TextNode){
+      			//noneArticleFlagNodeList.add(node);
+      			String text=((TextNode) node).text().trim();     		
+      			if (text.startsWith("相关新闻")) {
+      				noneArticleFlagNodeList.add(node);
+				}
+      			}    	
+      	}
+  
+        });
+
+      	for (Node node : noneArticleFlagNodeList) {//对获得的list进行遍历，
+      	Node	nodeParent= node.parent();
+      	List<Node> flagNode= new LinkedList<Node>();// textNode到 longestTextNode的路径
+      		while(nodeParent!=newsContentNode){
+      			flagNode.add(nodeParent);
+      		nodeParent= nodeParent.parent();	
+      		}
+      	DOMUtil.deleteLeftOrRight(flagNode, "right");
+      	
+      	}
+      	
+      	Document document3 = null;
+      	try {
+      		document3 = Jsoup.parse(new File("newsWebPageHead.html"), "utf-8");
+      	} catch (IOException e) {
+      		e.printStackTrace();
+      	}
+       	if (commoNode == bodyInUse) {
+      		document3.body().html(commoNode.outerHtml());
+      	} else {
+      		document3.body().appendChild(commoNode);
+      	}
+       	Helper.writeStringToFile(document3.outerHtml(), "D:/test/commonNode3.html");
 	}
 	
 	/**
@@ -402,10 +439,14 @@ public class ReadabilityNews3 {
 	/**
 	 * Get the combined outer HTML of all matched elements.
 	 * 
+	 * 如果解析失败，返回空字符串；否则返回解析成功后的文档的字符串表示
 	 * @return
 	 */
 	public final String outerHtml() {
-		return mDocument.outerHtml();
+		if (this.success) {
+			this.outDocument.outerHtml();
+		}
+		return "";
 	}
 
 	/**
@@ -634,7 +675,10 @@ public class ReadabilityNews3 {
 	 * Prepare the HTML document for readability to scrape it. This includes
 	 * things like stripping javascript, CSS, and handling terrible markup.
 	 * (为readability准备HTML document。包括去掉javascript, CSS和处理糟糕的标记,
-	 * 还有，把使用不当的div标签换成P标签)
+	 * 还有，
+	 * 1. 把使用不当的div标签换成P标签
+	 * 2. 删除所有不会显示在页面上的内容
+	 * )
 	 */
 	protected void prepDocument() {
 		/**
@@ -716,6 +760,20 @@ public class ReadabilityNews3 {
 				}
 			}
 		}
+		
+		// 删除所有不会显示在页面上的内容
+		DOMUtil.traverse(mDocument, new NodeOperate() {
+			
+			@Override
+			public void action(Node node) {
+				if (node.getClass() == Element.class) {
+					Element element = (Element) node;
+					if (element.attr("style").equals("display:none;")) {
+						element.remove();
+					}
+				}
+			}
+		});
 	}
 
 	/**

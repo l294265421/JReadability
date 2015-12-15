@@ -2,6 +2,7 @@ package com.wuman.jreadability;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -14,37 +15,17 @@ import java.io.Writer;
 import java.net.URL;
 
 import com.wuman.jreadability.news.ReadabilityNews;
-import com.wuman.jreadability.news.ReadabilityNews3;
+import com.wuman.jreadability.news.ReadabilityNews5;
 
 public class Test {
 
 	public static void main(String[] args) throws IOException {
-		URL url = new URL("http://it.people.com.cn/n/2015/1211/c1009-27913081.html");
+		URL url = new URL("http://intl.ce.cn/qqss/201512/15/t20151215_7559627.shtml");
 //		URL url = new URL("http://pic.people.com.cn/n/2015/1203/c1016-27884040.html");
-		ReadabilityNews3 readability = new ReadabilityNews3(url, 30000, null);
+//		ReadabilityNews5 readability = new ReadabilityNews5(new File("D:\\test\\10index.html"), "utf-8", "http://www.cnblogs.com/ybwang/archive/2011/10/04/lastOrderTraverse.html", null);
+		ReadabilityNews5 readability = new ReadabilityNews5(url, 5000, null);
 		readability.init();
-//		InputStream inputStream = new FileInputStream("/home/liyuncong/test/347具赴缅远征军遗骸将归国.html");
-//		Reader reader = new InputStreamReader(inputStream, "UTF-8");
-//		BufferedReader bufferedReader = new BufferedReader(reader);
-//		String html = "";
-//		String line = "";
-//		while ((line = bufferedReader.readLine()) != null) {
-//			html += line + System.lineSeparator();
-//		}
-//		bufferedReader.close();
-		
-//		Readability readability = new Readability(html);
-//		readability.init();
-//		String cleanHtml = readability.outerHtml();
-//		
-//		System.out.println(".........");
-//		System.out.println(cleanHtml);
-//		
-//		OutputStream outputStream = new FileOutputStream("/home/liyuncong/test10.html");
-//		Writer writer = new OutputStreamWriter(outputStream, "utf-8");
-//		BufferedWriter bufferedWriter = new BufferedWriter(writer);
-//		bufferedWriter.write(cleanHtml);
-//		bufferedWriter.close();
+
 	}
 	
 }

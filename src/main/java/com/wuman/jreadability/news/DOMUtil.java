@@ -70,22 +70,43 @@ public class DOMUtil {
 	}
 	
 	/**
-	 * 先根遍历节点树
+	 * 先根遍历节点树;如果是要删除树中节点，则要注意：没有父节点的节点不能删除
 	 * @param node 根节点
 	 * @param nodeOperate 根节点上的操作
 	 */
 	public static void traverse(Node node, NodeOperate nodeOperate) {
 		if (node != null) {
-			nodeOperate.action(node);
+			// foreSize和afterSize用于应对删除操作
+			Node parent = node.parent();
+			if (parent == null) {
+				nodeOperate.action(node);
+			} else {
+				int foreSize = parent.childNodes().size();
+				nodeOperate.action(node);
+				int afterSize = parent.childNodes().size();
+				// 如果该节点已经从节点树中删除，就没有必要遍历其子节点了
+				if (afterSize < foreSize) {
+					return;
+				}
+			}
+			
 			List<Node> children = node.childNodes();
-			for (Node child : children) {
-				traverse(child, nodeOperate);
+			int foreSize = children.size();
+			for(int i = 0; i < foreSize;) {
+				traverse(children.get(i), nodeOperate);
+				int afterSize = children.size();
+				if (afterSize < foreSize) {
+					foreSize = afterSize;
+				} else {
+					i++;
+				}
 			}
 		}
 	}
 	
 	/**
-	 * 遍历树中夹在leftPath和rightPath之间的区域，对遇到的元素进行操作；
+	 * 遍历树中夹在leftPath和rightPath之间的区域，对遇到的元素进行操作;
+	 * 如果是要删除树中节点，则要注意：没有父节点的节点不能删除
 	 * @param leftPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
 	 * 父节点和rightPath中最后一个的父节点是同一节点
 	 * @param rightPath 树中的一条链表，后一个元素是前一个元素的父节点，最后一个节点的
@@ -102,7 +123,7 @@ public class DOMUtil {
 			while (nextSibling != null) {
 				Node temp = nextSibling.nextSibling();
 				
-				nodeOperate.action(nextSibling);
+				traverse(nextSibling, nodeOperate);
 				
 				nextSibling = temp;
 			}
@@ -117,7 +138,7 @@ public class DOMUtil {
 			while (previousSibling != null) {
 				Node temp = previousSibling.nextSibling();
 				
-				nodeOperate.action(previousSibling);
+				traverse(previousSibling, nodeOperate);
 				
 				previousSibling = temp;
 			}
@@ -130,7 +151,7 @@ public class DOMUtil {
 		while (lastNextSibling != lastRightPathNode) {
 			Node temp = lastNextSibling.nextSibling();
 			
-			nodeOperate.action(lastNextSibling);
+			traverse(lastNextSibling, nodeOperate);
 			
 			lastNextSibling = temp;
 		}
@@ -139,6 +160,7 @@ public class DOMUtil {
 	
 	/**
 	 * 遍历树中leftPath右边区域，对遇到的元素进行操作；
+	 * 如果是要删除树中节点，则要注意：没有父节点的节点不能删除
 	 * @param leftPath 树中的一条链表，后一个元素是前一个元素的父节点
 	 * @param nodeOperate
 	 */
@@ -151,7 +173,7 @@ public class DOMUtil {
 			while (nextSibling != null) {
 				Node temp = nextSibling.nextSibling();
 				
-				nodeOperate.action(nextSibling);
+				traverse(nextSibling, nodeOperate);
 				
 				nextSibling = temp;
 			}
@@ -159,7 +181,8 @@ public class DOMUtil {
 	}
 	
 	/**
-	 * 遍历树中rightPath左边边区域，对遇到的元素进行操作；
+	 * 遍历树中rightPath左边边区域，对遇到的元素进行操作;
+	 * 如果是要删除树中节点，则要注意：没有父节点的节点不能删除
 	 * @param rightPath 树中的一条链表，后一个元素是前一个元素的父节点
 	 * @param nodeOperate
 	 */
@@ -172,7 +195,7 @@ public class DOMUtil {
 			while (previousSibling != null) {
 				Node temp = previousSibling.previousSibling();
 				
-				nodeOperate.action(previousSibling);
+				traverse(previousSibling, nodeOperate);
 				
 				previousSibling = temp;
 			}
@@ -189,22 +212,7 @@ public class DOMUtil {
 	 * @param tagName 要删除的节点名
 	 */
 	public static void deleteAllElementByTagName(List<Node> leftPath, List<Node> rightPath, String tagName) {
-		final String internalTagName = tagName;
-		DOMUtil.travers(leftPath, rightPath, new NodeOperate() {
-			
-			@Override
-			public void action(Node node) {
-				if (node.getClass() == Element.class) {					
-					// 删除所有tagName元素
-					Elements allIframe = ((Element)node).getElementsByTag(internalTagName);
-					Iterator<Element> iframeIterator = allIframe.iterator();
-					while (iframeIterator.hasNext()) {
-						iframeIterator.next().remove();
-					}
-				}
-				
-			}
-		});
+		DOMUtil.travers(leftPath, rightPath, new RemoveNodeByName(tagName));
 	}
 	
 	/**
@@ -213,21 +221,9 @@ public class DOMUtil {
 	 */
 	public static void deleteLeftOrRight(List<Node> path, String leftOrRight) {
 		if (leftOrRight.equals("right")) {
-			travers(path, new NodeOperate() {
-				
-				@Override
-				public void action(Node node) {
-					node.remove();
-				}
-			});
+			travers(path, new RemoveNode());
 		} else {
-			travers(new NodeOperate() {
-				
-				@Override
-				public void action(Node node) {
-					node.remove();
-				}
-			}, path);
+			travers(new RemoveNode(), path);
 		}
 	}
 }

@@ -3,7 +3,7 @@ package com.wuman.jreadability.news;
 import java.util.HashSet;
 
 /**
- * 如果一个字符串是“非正文内容”标记，以为它及它之后的文本节点都不是正文
+ * 如果一个字符串是“非正文内容”标记，则它及它之后的文本节点都不是正文
  * @author liyuncong
  *
  */
@@ -15,6 +15,7 @@ public class NoneArticleFlag {
 		flags.add("延伸阅读");
 		flags.add("更多猛料");
 		flags.add("相关阅读");
+		flags.add("相关");
 	}
 	
 	private NoneArticleFlag() {
